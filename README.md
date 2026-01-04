@@ -2,6 +2,10 @@
 
 BitKeys is a tool for exploring the Bitcoin private key space. It generates Bitcoin addresses from private keys and checks their balances via the Blockchain.info API.
 
+**Live Demo:** https://bitkeys.netlify.app
+
+**Telegram:** [@bitkeysapp](https://t.me/bitkeysapp)
+
 ## Features
 
 - **Manual Mode**: Navigate through pages of 128 addresses, select specific pages or positions
@@ -32,7 +36,3 @@ The app runs entirely in your browser. Private keys are generated locally and ne
 ## Disclaimer
 
 This project is for educational purposes only. Never spend bitcoins you find — they may belong to someone else.
-
-## Community
-
-Join our Telegram: [@bitkeysapp](https://t.me/bitkeysapp)
