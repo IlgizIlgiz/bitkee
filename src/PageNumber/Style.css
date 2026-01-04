@@ -1,0 +1,1003 @@
+/* ============================================
+   PAGE NUMBER - Premium Fintech Style
+   Progress bar & navigation controls
+   ============================================ */
+
+/* Position Container */
+.position-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.position-container.balance-found {
+  pointer-events: none;
+  opacity: 0.5;
+  filter: grayscale(0.3);
+}
+
+.position-content {
+  width: 100%;
+}
+
+/* ============================================
+   PROGRESS BAR - Smooth Slider
+   ============================================ */
+.progress-bar-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  touch-action: none;
+  user-select: none;
+  padding: 0;
+}
+
+/* Current percentage value display with edit button - matches page number style */
+.progress-value-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Spacer to balance the edit button for centering */
+.value-spacer {
+  width: 20px; /* Same as pencil icon (14px) + margin (6px) */
+  flex-shrink: 0;
+}
+
+.progress-value-overlay {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-primary);
+  word-break: break-all;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.percent-edit-btn,
+.page-edit-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 0;
+  margin-left: 6px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .percent-edit-btn:hover:not(:disabled),
+  .page-edit-btn:hover:not(:disabled) {
+    color: var(--accent-warning);
+    opacity: 1;
+  }
+}
+
+.percent-edit-btn:disabled,
+.page-edit-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+/* The track container - IMPORTANT: overflow visible for indicator */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-glass);
+  border-radius: 3px;
+  position: relative;
+  border: 1px solid var(--border-subtle);
+  cursor: default;
+  /* Allow indicator to show outside */
+  overflow: visible !important;
+  /* Padding for click area to match indicator dot size (20px), bar is 6px so need 7px each side */
+  padding: 7px 0;
+  margin: 0;
+  background-clip: content-box;
+  border: none;
+  box-sizing: content-box;
+}
+
+/* Inner track styling */
+.progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--bg-glass);
+  border-radius: 3px;
+  border: 1px solid var(--border-subtle);
+}
+
+.progress-bar.interactive {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .progress-bar.interactive:hover::before {
+    border-color: var(--accent-primary);
+  }
+}
+
+/* The filled portion */
+.progress-fill {
+  height: 6px;
+  background: linear-gradient(90deg, var(--accent-primary), #818cf8);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+  position: absolute;
+  top: 7px;
+  left: 0;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Static highlight on fill (removed shimmer animation) */
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 80%
+  );
+}
+
+/* The draggable indicator */
+.progress-indicator {
+  position: absolute;
+  top: 10px; /* 7px padding + 3px (half of 6px bar height) */
+  left: 0;
+  transform: translate(-50%, -50%);
+  transition: left 0.2s ease;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.indicator-dot {
+  width: 20px;
+  height: 20px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  border: 3px solid var(--text-primary);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (hover: hover) {
+  .progress-bar.interactive:hover .indicator-dot {
+    transform: scale(1.2);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5);
+  }
+}
+
+.progress-bar.interactive:active .indicator-dot {
+  transform: scale(1.2);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5);
+}
+
+/* ============================================
+   BALANCE ROW
+   ============================================ */
+.page-balance-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* Balance cards - vertical layout */
+.balance-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.25s ease;
+  min-width: 0;
+}
+
+@media (hover: hover) {
+  .balance-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-default);
+  }
+}
+
+.balance-card.clickable {
+  cursor: pointer;
+  position: relative;
+}
+
+@media (hover: hover) {
+  .balance-card.clickable:hover {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-soft);
+  }
+}
+
+.balance-eye-icon {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+@media (hover: hover) {
+  .balance-card.clickable:hover .balance-eye-icon {
+    color: var(--accent-primary);
+    opacity: 1;
+  }
+}
+
+.balance-card-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.balance-icon {
+  color: var(--text-muted);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.balance-card-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.balance-card-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  text-align: center;
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: center;
+  min-height: 18px;
+}
+
+.btc-suffix {
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Has balance - success state */
+.balance-card.has-balance {
+  border-color: var(--accent-success);
+  background: var(--accent-success-soft);
+}
+
+.balance-card.has-balance .balance-icon {
+  color: var(--accent-success);
+  opacity: 1;
+}
+
+.balance-card.has-balance .balance-card-label {
+  color: var(--accent-success);
+}
+
+.balance-card.has-balance .balance-card-value {
+  color: var(--accent-success);
+}
+
+.balance-card.has-balance .btc-suffix {
+  color: var(--accent-success);
+  opacity: 0.8;
+}
+
+/* Has received - warning state */
+.balance-card.has-received {
+  border-color: var(--accent-warning);
+  background: var(--accent-warning-soft);
+}
+
+.balance-card.has-received .balance-icon {
+  color: var(--accent-warning);
+  opacity: 1;
+}
+
+.balance-card.has-received .balance-card-label {
+  color: var(--accent-warning);
+}
+
+.balance-card.has-received .balance-card-value {
+  color: var(--accent-warning);
+}
+
+.balance-card.has-received .btc-suffix {
+  color: var(--accent-warning);
+  opacity: 0.8;
+}
+
+/* Balance card scanning state */
+.balance-card.scanning {
+  opacity: 0.7;
+}
+
+.balance-card.scanning .balance-card-value {
+  color: var(--text-muted);
+}
+
+/* Balance loader spinner */
+.balance-loader {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: balance-spin 0.8s linear infinite;
+}
+
+@keyframes balance-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   PAGE HEADER & NUMBER
+   ============================================ */
+.page-label-row {
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+.page-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.page-nav-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  position: relative;
+}
+
+.nav-btn-column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page-nav-btn {
+  cursor: pointer;
+  transition: var(--transition);
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+}
+
+@media (hover: hover) {
+  .page-nav-btn:hover {
+    background: var(--accent-primary-soft);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+}
+
+.page-number-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.page-number {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent-primary);
+  font-weight: 500;
+  word-break: break-all;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ============================================
+   PAGE INPUT FORM
+   ============================================ */
+.page-input-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.page-input-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  width: 120px;
+  text-align: center;
+  transition: var(--transition);
+}
+
+.page-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-soft);
+}
+
+.page-input::placeholder {
+  color: var(--text-muted);
+}
+
+.page-textarea-inline {
+  width: 100%;
+  min-height: 70px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  resize: vertical;
+  outline: none;
+  transition: var(--transition);
+}
+
+.page-textarea-inline:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-soft);
+}
+
+.page-input-submit-btn,
+.page-input-cancel-btn,
+.page-input-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  transition: var(--transition);
+  min-width: 40px;
+}
+
+.page-input-submit-btn {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+@media (hover: hover) {
+  .page-input-submit-btn:hover {
+    background: var(--accent-primary);
+    color: white;
+  }
+
+  .page-input-cancel-btn:hover {
+    border-color: var(--accent-danger);
+    color: var(--accent-danger);
+  }
+
+  .page-input-clear-btn:hover {
+    border-color: var(--accent-warning);
+    color: var(--accent-warning);
+  }
+}
+
+/* ============================================
+   SECTION HEADER
+   ============================================ */
+.section-header {
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.pn-w {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.number-wr {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Result Colors */
+.PageNumberReceived {
+  color: var(--accent-warning);
+}
+
+.PageNumberTotal {
+  color: var(--accent-success);
+}
+
+/* ============================================
+   FOUND BALANCE MESSAGE
+   ============================================ */
+.found-balance-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 18px;
+  margin: 14px 0;
+  background: var(--accent-success-soft);
+  border: 1px solid var(--accent-success);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 25px var(--accent-success-glow);
+}
+
+.found-balance-icon {
+  font-size: 32px;
+}
+
+.found-balance-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.found-balance-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent-success);
+  letter-spacing: 0.5px;
+}
+
+.found-balance-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ============================================
+   RESPONSIVE - COMPACT MOBILE
+   ============================================ */
+@media (max-width: 600px) {
+  .position-container {
+    gap: 10px;
+  }
+
+  .progress-bar-container {
+    gap: 4px;
+    padding: 0;
+  }
+
+  .progress-bar {
+    height: 5px;
+    margin: 6px 0;
+  }
+
+  .indicator-dot {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+  }
+
+  .progress-value-overlay,
+  .page-number {
+    font-size: 11px;
+  }
+
+  .page-label {
+    font-size: 8px;
+  }
+
+  .page-nav-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+
+  .page-input {
+    width: 90px;
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+
+  /* Balance cards mobile */
+  .page-balance-row {
+    gap: 6px;
+  }
+
+  .balance-card {
+    padding: 8px 10px;
+  }
+
+  .balance-card-label {
+    font-size: 8px;
+    letter-spacing: 0.5px;
+  }
+
+  .balance-card-value {
+    font-size: 11px;
+  }
+
+}
+
+@media (max-width: 420px) {
+  .position-container {
+    gap: 8px;
+  }
+
+  .progress-bar-container {
+    gap: 4px;
+    padding: 0;
+  }
+
+  .progress-value-overlay,
+  .page-number {
+    font-size: 10px;
+  }
+
+  /* Balance cards smaller screens */
+  .page-balance-divider {
+    margin: 8px 0;
+  }
+
+  .page-balance-row {
+    gap: 4px;
+  }
+
+  .balance-card {
+    padding: 6px 8px;
+    gap: 2px;
+  }
+
+  .balance-card-header {
+    gap: 3px;
+  }
+
+  .balance-icon {
+    width: 10px;
+    height: 10px;
+  }
+
+  .balance-card-label {
+    font-size: 7px;
+  }
+
+  .balance-card-value {
+    font-size: 10px;
+  }
+
+}
+
+@media (max-width: 380px) {
+  .progress-value-overlay,
+  .page-number {
+    font-size: 9px;
+  }
+
+  .indicator-dot {
+    width: 14px;
+    height: 14px;
+  }
+
+  .page-navigation-block {
+    padding: 6px;
+    gap: 4px;
+  }
+
+  .page-nav-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+
+  /* Balance cards tiny screens */
+  .balance-card {
+    padding: 5px 6px;
+  }
+
+  .balance-card-label {
+    font-size: 6px;
+    letter-spacing: 0.3px;
+  }
+
+  .balance-card-value {
+    font-size: 9px;
+  }
+
+  .page-nav-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .page-edit-btn svg,
+  .percent-edit-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* ============================================
+   PUZZLE MODE PANEL
+   ============================================ */
+.puzzle-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+}
+
+.puzzle-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.puzzle-icon {
+  color: #f59e0b;
+}
+
+.puzzle-mode-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f59e0b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.puzzle-selector {
+  display: flex;
+  justify-content: center;
+}
+
+.puzzle-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+  width: 100%;
+  max-width: 300px;
+  text-align: center;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.puzzle-select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-soft);
+}
+
+.puzzle-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.puzzle-target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.puzzle-target-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.puzzle-target-icon {
+  color: var(--accent-danger);
+}
+
+.puzzle-target-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.puzzle-target-address {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-primary);
+  word-break: break-all;
+  text-align: center;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.puzzle-reward {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.puzzle-reward-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.puzzle-reward-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.puzzle-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.puzzle-stat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.puzzle-stat svg {
+  color: var(--accent-primary);
+}
+
+.puzzle-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.puzzle-progress-bar {
+  width: 100%;
+  max-width: 200px;
+  height: 4px;
+  background: var(--bg-glass);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.puzzle-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  min-width: 1px;
+}
+
+.puzzle-progress-text {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+/* Responsive puzzle panel */
+@media (max-width: 600px) {
+  .puzzle-panel {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .puzzle-select {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .puzzle-target-address {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  .puzzle-reward-value {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .puzzle-panel {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .puzzle-mode-label {
+    font-size: 10px;
+  }
+
+  .puzzle-select {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .puzzle-target-address {
+    font-size: 9px;
+  }
+
+  .puzzle-stat {
+    font-size: 10px;
+  }
+}

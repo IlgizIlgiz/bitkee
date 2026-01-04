@@ -1,0 +1,137 @@
+/* ============================================
+   HEADER MENU - Compact Navigation
+   ============================================ */
+
+.header-menu {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-subtle);
+  width: 100vw;
+  box-sizing: border-box;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  gap: 6px;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 200;
+}
+
+.menu-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.menu-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .menu-item:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.menu-item:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.menu-icon {
+  flex-shrink: 0;
+  color: var(--accent-primary);
+}
+
+.menu-text {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Legacy link styles */
+.cUrl {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+@media (hover: hover) {
+  .cUrl:hover {
+    text-decoration: underline;
+  }
+}
+
+.links {
+  display: flex;
+  gap: 14px;
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+/* ============================================
+   RESPONSIVE - Icon-only on small screens
+   ============================================ */
+@media (max-width: 420px) {
+  .header-menu {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .menu-left {
+    gap: 4px;
+  }
+
+  .menu-right {
+    gap: 6px;
+  }
+
+  .menu-item {
+    padding: 10px;
+    gap: 0;
+  }
+
+  /* Hide text on smaller screens */
+  .menu-text {
+    display: none;
+  }
+
+  .menu-icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 360px) {
+  .header-menu {
+    padding: 8px 12px;
+  }
+
+  .menu-item {
+    padding: 8px;
+  }
+}

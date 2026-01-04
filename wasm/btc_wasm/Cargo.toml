@@ -1,0 +1,39 @@
+[package]
+name = "btc_wasm"
+version = "0.1.0"
+edition = "2021"
+authors = ["BitKee"]
+description = "Fast Bitcoin address generation via WebAssembly"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+
+# Pure Rust crypto (no C dependencies - WASM compatible)
+k256 = { version = "0.13", features = ["ecdsa"] }
+sha2 = "0.10"
+ripemd = "0.1"
+bs58 = "0.5"
+
+# Required for WASM random number generation
+getrandom = { version = "0.2", features = ["js"] }
+
+# Better error messages in debug
+console_error_panic_hook = { version = "0.1", optional = true }
+
+# For serialization
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = true

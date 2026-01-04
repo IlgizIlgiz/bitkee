@@ -1,0 +1,57 @@
+/* ============================================
+   SOUND TOGGLE - Minimal Clean Design
+   ============================================ */
+
+.sound-toggle-btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: var(--transition);
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+}
+
+.sound-toggle-btn.enabled {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.sound-toggle-btn.disabled {
+  border-color: var(--border-subtle);
+  color: var(--text-muted);
+}
+
+@media (hover: hover) {
+  .sound-toggle-btn:hover {
+    border-color: var(--color-primary);
+  }
+}
+
+.sound-toggle-btn:focus {
+  outline: none;
+}
+
+@media (max-width: 400px) {
+  .sound-toggle-btn {
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 14px;
+    padding: 4px 6px;
+  }
+}
+
+@media (max-width: 360px) {
+  .sound-toggle-btn {
+    min-width: 28px;
+    min-height: 28px;
+    font-size: 12px;
+    padding: 3px 4px;
+  }
+}

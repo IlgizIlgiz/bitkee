@@ -1,0 +1,233 @@
+/* ============================================
+   HISTORY MODAL - Premium Fintech Style
+   ============================================ */
+
+/* Modal Overlay */
+.r-w {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 12, 15, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+/* Close overlay */
+.resultsclose {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  z-index: -1;
+}
+
+/* Modal Container */
+.results {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 440px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Header */
+.resH {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.resHT {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resHT svg {
+  color: var(--accent-primary);
+}
+
+.resultsC {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+@media (hover: hover) {
+  .resultsC:hover {
+    background: var(--accent-danger-soft);
+    border-color: var(--accent-danger);
+  }
+}
+
+.closeSvg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary);
+  transition: var(--transition);
+}
+
+@media (hover: hover) {
+  .resultsC:hover .closeSvg {
+    color: var(--accent-danger);
+  }
+}
+
+/* Data Container */
+.resData {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(85vh - 70px);
+  min-height: 0;
+}
+
+.resData::-webkit-scrollbar {
+  width: 4px;
+}
+
+.resData::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.resData::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 2px;
+}
+
+/* History Item */
+.historyItem {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+@media (hover: hover) {
+  .historyItem:hover {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-soft);
+  }
+}
+
+/* History Item Date */
+.historyItemDate {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.historyItemDate::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+}
+
+/* History Item Page */
+.historyItemPage {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+/* End text */
+.endText {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+  margin-top: 12px;
+}
+
+/* Empty history */
+.emptyHistoryText {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 20px;
+  line-height: 1.7;
+}
+
+/* Loading text */
+.loadingText {
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+  padding: 30px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .r-w {
+    padding: 10px;
+  }
+
+  .results {
+    max-height: 90vh;
+    border-radius: var(--radius-lg);
+  }
+
+  .resH {
+    padding: 14px 16px;
+  }
+
+  .resHT {
+    font-size: 13px;
+  }
+
+  .resultsC {
+    width: 28px;
+    height: 28px;
+  }
+
+  .resData {
+    padding: 12px;
+    gap: 6px;
+  }
+
+  .historyItem {
+    padding: 12px 14px;
+  }
+
+  .historyItemDate {
+    font-size: 10px;
+  }
+
+  .historyItemPage {
+    font-size: 11px;
+  }
+}
