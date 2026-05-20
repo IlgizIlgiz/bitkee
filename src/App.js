@@ -44,6 +44,44 @@ function App() {
   const puzzleBalancesRef = useRef(puzzleBalances);
   useEffect(() => { selectedPuzzleRef.current = selectedPuzzle; }, [selectedPuzzle]);
   useEffect(() => { puzzleBalancesRef.current = puzzleBalances; }, [puzzleBalances]);
+
+  // Puzzle performance & search settings (persisted in localStorage)
+  const PUZZLE_MAX_THREADS = Math.max(1, navigator.hardwareConcurrency || 4);
+  const PUZZLE_INTENSITY_THROTTLE = { eco: 50, normal: 10, turbo: 0 };
+  const PUZZLE_HIDDEN_THROTTLE_MS = 200; // когда вкладка свёрнута и автопауза включена
+  const [puzzleThreads, setPuzzleThreads] = useState(() => {
+    const stored = parseInt(localStorage.getItem('puzzleThreads'), 10);
+    if (stored >= 1 && stored <= PUZZLE_MAX_THREADS) return stored;
+    return Math.min(8, Math.max(2, PUZZLE_MAX_THREADS)); // дефолт: текущее поведение
+  });
+  const [puzzleIntensity, setPuzzleIntensity] = useState(() => {
+    const stored = localStorage.getItem('puzzleIntensity');
+    return stored === 'eco' || stored === 'normal' || stored === 'turbo' ? stored : 'normal';
+  });
+  const [puzzlePauseWhenHidden, setPuzzlePauseWhenHidden] = useState(() => {
+    const stored = localStorage.getItem('puzzlePauseWhenHidden');
+    return stored === null ? true : stored === 'true';
+  });
+  const [puzzleSearchMode, setPuzzleSearchMode] = useState(() => {
+    const stored = localStorage.getItem('puzzleSearchMode');
+    return stored === 'sequential' || stored === 'random' ? stored : 'random';
+  });
+  const [puzzleStartPercent, setPuzzleStartPercent] = useState(() => {
+    const stored = parseFloat(localStorage.getItem('puzzleStartPercent'));
+    return isFinite(stored) && stored >= 0 && stored <= 100 ? stored : 0;
+  });
+  const [puzzleSequentialProgress, setPuzzleSequentialProgress] = useState(0); // 0..100, среднее по воркерам
+  const puzzleThreadsRef = useRef(puzzleThreads);
+  const puzzleIntensityRef = useRef(puzzleIntensity);
+  const puzzlePauseWhenHiddenRef = useRef(puzzlePauseWhenHidden);
+  const puzzleSearchModeRef = useRef(puzzleSearchMode);
+  const puzzleStartPercentRef = useRef(puzzleStartPercent);
+  const puzzleWorkerProgressRef = useRef({}); // { workerId: percentInItsSubrange }
+  useEffect(() => { puzzleThreadsRef.current = puzzleThreads; localStorage.setItem('puzzleThreads', String(puzzleThreads)); }, [puzzleThreads]);
+  useEffect(() => { puzzleIntensityRef.current = puzzleIntensity; localStorage.setItem('puzzleIntensity', puzzleIntensity); }, [puzzleIntensity]);
+  useEffect(() => { puzzlePauseWhenHiddenRef.current = puzzlePauseWhenHidden; localStorage.setItem('puzzlePauseWhenHidden', String(puzzlePauseWhenHidden)); }, [puzzlePauseWhenHidden]);
+  useEffect(() => { puzzleSearchModeRef.current = puzzleSearchMode; localStorage.setItem('puzzleSearchMode', puzzleSearchMode); }, [puzzleSearchMode]);
+  useEffect(() => { puzzleStartPercentRef.current = puzzleStartPercent; localStorage.setItem('puzzleStartPercent', String(puzzleStartPercent)); }, [puzzleStartPercent]);
   // Звук: по умолчанию выключен, но читаем из localStorage
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const stored = localStorage.getItem('soundEnabled');
@@ -558,6 +596,40 @@ function App() {
     }
   }
 
+  // Compute current throttle ms based on intensity and tab visibility
+  const computePuzzleThrottle = () => {
+    const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    if (hidden && puzzlePauseWhenHiddenRef.current) return PUZZLE_HIDDEN_THROTTLE_MS;
+    return PUZZLE_INTENSITY_THROTTLE[puzzleIntensityRef.current] ?? 10;
+  };
+
+  // Split puzzle range into N equal subranges (BigInt hex math).
+  // startPercent (0..100) обрезает начало общего диапазона.
+  const splitPuzzleRange = (rangeStartHex, rangeEndHex, numWorkers, startPercent) => {
+    const start = BigInt('0x' + rangeStartHex);
+    const end = BigInt('0x' + rangeEndHex);
+    const total = end - start + 1n;
+    const offset = (total * BigInt(Math.round(startPercent * 10000))) / 1000000n;
+    const effectiveStart = start + offset;
+    const span = end - effectiveStart + 1n;
+    const chunk = span / BigInt(numWorkers);
+    const remainder = span - chunk * BigInt(numWorkers);
+    const subranges = [];
+    let cursor = effectiveStart;
+    for (let i = 0; i < numWorkers; i++) {
+      // Размазываем «лишние» ключи (remainder) по первым воркерам
+      const size = chunk + (BigInt(i) < remainder ? 1n : 0n);
+      const subStart = cursor;
+      const subEnd = cursor + size - 1n;
+      subranges.push({
+        rangeStart: subStart.toString(16).padStart(64, '0'),
+        rangeEnd: subEnd.toString(16).padStart(64, '0')
+      });
+      cursor = subEnd + 1n;
+    }
+    return subranges;
+  };
+
   // Puzzle mode - starts continuous search with multiple workers
   const startPuzzleSearch = async () => {
     const puzzle = selectedPuzzleRef.current;
@@ -566,21 +638,28 @@ function App() {
       return;
     }
 
-    // Количество потоков = количество ядер CPU (минимум 2, максимум 8)
-    const numWorkers = Math.min(8, Math.max(2, navigator.hardwareConcurrency || 4));
-    console.log(`Starting puzzle search with ${numWorkers} workers for:`, puzzle.address);
+    const numWorkers = Math.max(1, Math.min(PUZZLE_MAX_THREADS, puzzleThreadsRef.current || 1));
+    const mode = puzzleSearchModeRef.current;
+    const throttleMs = computePuzzleThrottle();
+    const startPercent = puzzleStartPercentRef.current || 0;
+    console.log(`Starting puzzle search: ${numWorkers} workers, mode=${mode}, throttleMs=${throttleMs}, startPercent=${startPercent}% for:`, puzzle.address);
 
     // Сбрасываем результаты и статистику
     setResultsExists(false);
     setFinalBalance(0);
     setTotalReceived(0);
     puzzleWorkerStatsRef.current = {};
+    puzzleWorkerProgressRef.current = {};
+    setPuzzleSequentialProgress(0);
 
     // Останавливаем старые воркеры если есть
     puzzleWorkersRef.current.forEach(w => {
       try { w.terminate(); } catch (e) {}
     });
     puzzleWorkersRef.current = [];
+
+    // Разрезаем диапазон на N подотрезков
+    const subranges = splitPuzzleRange(puzzle.rangeStart, puzzle.rangeEnd, numWorkers, startPercent);
 
     // Создаём новые воркеры
     for (let i = 0; i < numWorkers; i++) {
@@ -591,7 +670,7 @@ function App() {
         worker.onmessage = (e) => {
           // Puzzle stats update
           if (e.data.puzzleStats) {
-            const { keysChecked, speed } = e.data.puzzleStats;
+            const { keysChecked, speed, progress } = e.data.puzzleStats;
             puzzleWorkerStatsRef.current[workerId] = { checked: keysChecked, speed };
 
             // Агрегируем статистику от всех воркеров
@@ -599,6 +678,16 @@ function App() {
             const totalChecked = allStats.reduce((sum, s) => sum + s.checked, 0);
             const totalSpeed = allStats.reduce((sum, s) => sum + s.speed, 0);
             setPuzzleStats(prev => ({ ...prev, checked: totalChecked, speed: totalSpeed }));
+
+            // Прогресс — только в sequential
+            if (typeof progress === 'number') {
+              puzzleWorkerProgressRef.current[workerId] = progress;
+              const progresses = Object.values(puzzleWorkerProgressRef.current);
+              if (progresses.length > 0) {
+                const avg = progresses.reduce((a, b) => a + b, 0) / numWorkers;
+                setPuzzleSequentialProgress(avg);
+              }
+            }
             return;
           }
 
@@ -618,8 +707,10 @@ function App() {
         worker.postMessage({
           puzzleSearch: {
             targetAddress: puzzle.address,
-            rangeStart: puzzle.rangeStart,
-            rangeEnd: puzzle.rangeEnd
+            rangeStart: subranges[i].rangeStart,
+            rangeEnd: subranges[i].rangeEnd,
+            mode,
+            throttleMs
           }
         });
       } catch (error) {
@@ -629,6 +720,29 @@ function App() {
 
     console.log(`Started ${puzzleWorkersRef.current.length} puzzle workers`);
   };
+
+  // Send updated throttle to all running puzzle workers (hot-reload, no restart)
+  const updatePuzzleThrottle = () => {
+    if (puzzleWorkersRef.current.length === 0) return;
+    const throttleMs = computePuzzleThrottle();
+    puzzleWorkersRef.current.forEach(w => {
+      try { w.postMessage({ puzzleUpdate: { throttleMs } }); } catch (e) {}
+    });
+  };
+
+  // React to intensity changes while search is running
+  useEffect(() => {
+    updatePuzzleThrottle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzleIntensity, puzzlePauseWhenHidden]);
+
+  // Slow down (or restore) workers when tab visibility changes
+  useEffect(() => {
+    const handler = () => updatePuzzleThrottle();
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Stop puzzle search - stops all workers
   const stopPuzzleSearch = () => {
@@ -646,6 +760,7 @@ function App() {
     });
     puzzleWorkersRef.current = [];
     puzzleWorkerStatsRef.current = {};
+    puzzleWorkerProgressRef.current = {};
   };
 
   // Обработка результата puzzle search из WASM (только когда нашли!)
@@ -1770,6 +1885,104 @@ function App() {
                   </div>
                 )}
 
+                {/* Performance & search settings */}
+                <div className="puzzle-settings-section">
+                  <div className="puzzle-setting-row">
+                    <span className="puzzle-setting-label">{t('puzzleSearchModeLabel')}</span>
+                    <div className="puzzle-segmented">
+                      <button
+                        type="button"
+                        className={`puzzle-segmented-btn ${puzzleSearchMode === 'random' ? 'active' : ''}`}
+                        disabled={autoRunning}
+                        onClick={() => setPuzzleSearchMode('random')}
+                      >
+                        {t('puzzleModeRandom')}
+                      </button>
+                      <button
+                        type="button"
+                        className={`puzzle-segmented-btn ${puzzleSearchMode === 'sequential' ? 'active' : ''}`}
+                        disabled={autoRunning}
+                        onClick={() => setPuzzleSearchMode('sequential')}
+                      >
+                        {t('puzzleModeSequential')}
+                      </button>
+                    </div>
+                  </div>
+
+                  {puzzleSearchMode === 'sequential' && (
+                    <div className="puzzle-setting-row">
+                      <span className="puzzle-setting-label">
+                        {t('puzzleStartFrom')} <strong>{puzzleStartPercent.toFixed(1)}%</strong>
+                      </span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="99.9"
+                        step="0.1"
+                        value={puzzleStartPercent}
+                        disabled={autoRunning}
+                        onChange={(e) => setPuzzleStartPercent(parseFloat(e.target.value))}
+                        className="puzzle-slider"
+                      />
+                    </div>
+                  )}
+
+                  <div className="puzzle-setting-row">
+                    <span className="puzzle-setting-label">
+                      {t('puzzleThreads')} <strong>{puzzleThreads}</strong> / {PUZZLE_MAX_THREADS}
+                    </span>
+                    <input
+                      type="range"
+                      min="1"
+                      max={PUZZLE_MAX_THREADS}
+                      step="1"
+                      value={puzzleThreads}
+                      disabled={autoRunning}
+                      onChange={(e) => setPuzzleThreads(parseInt(e.target.value, 10))}
+                      className="puzzle-slider"
+                    />
+                  </div>
+
+                  <div className="puzzle-setting-row">
+                    <span className="puzzle-setting-label">{t('puzzleIntensity')}</span>
+                    <div className="puzzle-segmented">
+                      <button
+                        type="button"
+                        className={`puzzle-segmented-btn ${puzzleIntensity === 'eco' ? 'active' : ''}`}
+                        onClick={() => setPuzzleIntensity('eco')}
+                        title={t('puzzleIntensityEcoHint')}
+                      >
+                        {t('puzzleIntensityEco')}
+                      </button>
+                      <button
+                        type="button"
+                        className={`puzzle-segmented-btn ${puzzleIntensity === 'normal' ? 'active' : ''}`}
+                        onClick={() => setPuzzleIntensity('normal')}
+                        title={t('puzzleIntensityNormalHint')}
+                      >
+                        {t('puzzleIntensityNormal')}
+                      </button>
+                      <button
+                        type="button"
+                        className={`puzzle-segmented-btn ${puzzleIntensity === 'turbo' ? 'active' : ''}`}
+                        onClick={() => setPuzzleIntensity('turbo')}
+                        title={t('puzzleIntensityTurboHint')}
+                      >
+                        {t('puzzleIntensityTurbo')}
+                      </button>
+                    </div>
+                  </div>
+
+                  <label className="puzzle-setting-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={puzzlePauseWhenHidden}
+                      onChange={(e) => setPuzzlePauseWhenHidden(e.target.checked)}
+                    />
+                    <span>{t('puzzlePauseWhenHidden')}</span>
+                  </label>
+                </div>
+
                 {puzzleStats.startTime && (
                   <div className="puzzle-stats-section">
                     <div className="puzzle-stat-item">
@@ -1780,8 +1993,15 @@ function App() {
                       <span className="stat-value">~{puzzleStats.speed.toLocaleString()}</span>
                       <span className="stat-label">{t('keysPerSec')}</span>
                     </div>
+                    {puzzleSearchMode === 'sequential' && (
+                      <div className="puzzle-stat-item">
+                        <span className="stat-value">{puzzleSequentialProgress.toFixed(4)}%</span>
+                        <span className="stat-label">{t('puzzleProgress')}</span>
+                      </div>
+                    )}
                   </div>
                 )}
+
               </div>
 
               {/* Puzzle Start/Stop button */}

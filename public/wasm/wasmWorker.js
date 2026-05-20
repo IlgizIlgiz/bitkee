@@ -278,51 +278,83 @@ function generateRandomKeyInRange(rangeStart, rangeEnd) {
 // Puzzle search state
 let puzzleSearchRunning = false;
 let puzzleSearchStats = { keysChecked: 0, startTime: 0, found: false, result: null };
+let puzzleThrottleMs = 0; // Реальная пауза между батчами (управляется главным потоком)
+
+// Increment a 64-char hex private key by 1 (BigInt arithmetic)
+function incrementHexKey(hexKey) {
+  const next = BigInt('0x' + hexKey) + 1n;
+  return next.toString(16).padStart(64, '0');
+}
 
 // Continuous puzzle search - runs until stopped or found
-async function runPuzzleSearch(targetAddress, rangeStartHex, rangeEndHex) {
+// mode: 'sequential' | 'random'
+// rangeStartHex/rangeEndHex — границы поиска для этого воркера (уже разрезанные)
+async function runPuzzleSearch(targetAddress, rangeStartHex, rangeEndHex, mode, throttleMs, batchSize) {
   puzzleSearchRunning = true;
   puzzleSearchStats = { keysChecked: 0, startTime: Date.now(), found: false, result: null };
+  puzzleThrottleMs = typeof throttleMs === 'number' ? throttleMs : 0;
 
-  const BATCH_SIZE = 500; // Увеличен для производительности
-  const REPORT_INTERVAL = 1000; // Отправляем статистику каждую секунду
+  const BATCH_SIZE = batchSize && batchSize > 0 ? batchSize : 500;
+  const REPORT_INTERVAL = 1000;
   let lastReportTime = Date.now();
 
-  console.log('[WASM] Starting continuous puzzle search for:', targetAddress);
+  // Pad границы до 64 символов (puzzles.js хранит короткие hex)
+  const startHex = rangeStartHex.padStart(64, '0');
+  const endHex = rangeEndHex.padStart(64, '0');
+  const startBig = BigInt('0x' + startHex);
+  const endBig = BigInt('0x' + endHex);
+  const rangeSize = endBig - startBig + 1n;
 
-  while (puzzleSearchRunning && !puzzleSearchStats.found) {
+  // Для sequential — текущий ключ начинается со старта диапазона
+  let currentKey = startHex;
+  let sequentialDone = false;
+
+  console.log('[WASM] Starting puzzle search:', { targetAddress, mode, throttleMs: puzzleThrottleMs, startHex, endHex });
+
+  while (puzzleSearchRunning && !puzzleSearchStats.found && !sequentialDone) {
     // Проверяем батч ключей
     for (let i = 0; i < BATCH_SIZE && puzzleSearchRunning; i++) {
-      const randomKey = generateRandomKeyInRange(rangeStartHex, rangeEndHex);
+      let testKey;
+      if (mode === 'sequential') {
+        testKey = currentKey;
+        // Подготовим следующий ключ; если перевалили endHex — стоп
+        if (BigInt('0x' + currentKey) >= endBig) {
+          sequentialDone = true;
+          puzzleSearchStats.keysChecked += i + 1;
+          break;
+        }
+        currentKey = incrementHexKey(currentKey);
+      } else {
+        testKey = generateRandomKeyInRange(startHex, endHex);
+      }
 
       // Проверяем compressed адрес (большинство puzzle адресов compressed)
-      const addrCompressed = generateSingleAddress(randomKey, true);
+      const addrCompressed = generateSingleAddress(testKey, true);
 
       if (addrCompressed === targetAddress) {
-        const wif = await privateKeyToWIF(randomKey, true);
+        const wif = await privateKeyToWIF(testKey, true);
         puzzleSearchStats.found = true;
         puzzleSearchStats.result = {
           found: true,
-          private_key_hex: randomKey,
+          private_key_hex: testKey,
           private_key_wif: wif,
           address_found: addrCompressed,
           keys_checked: puzzleSearchStats.keysChecked + i + 1
         };
         puzzleSearchRunning = false;
 
-        // Отправляем результат
         self.postMessage({ puzzleResult: puzzleSearchStats.result });
         return;
       }
 
       // Также проверяем uncompressed
-      const addrUncompressed = generateSingleAddress(randomKey, false);
+      const addrUncompressed = generateSingleAddress(testKey, false);
       if (addrUncompressed === targetAddress) {
-        const wif = await privateKeyToWIF(randomKey, false);
+        const wif = await privateKeyToWIF(testKey, false);
         puzzleSearchStats.found = true;
         puzzleSearchStats.result = {
           found: true,
-          private_key_hex: randomKey,
+          private_key_hex: testKey,
           private_key_wif: wif,
           address_found: addrUncompressed,
           keys_checked: puzzleSearchStats.keysChecked + i + 1
@@ -334,26 +366,56 @@ async function runPuzzleSearch(targetAddress, rangeStartHex, rangeEndHex) {
       }
     }
 
-    puzzleSearchStats.keysChecked += BATCH_SIZE;
+    if (!sequentialDone) {
+      puzzleSearchStats.keysChecked += BATCH_SIZE;
+    }
 
     // Отправляем статистику каждую секунду
     const now = Date.now();
     if (now - lastReportTime >= REPORT_INTERVAL) {
       const elapsed = (now - puzzleSearchStats.startTime) / 1000;
-      const speed = Math.round(puzzleSearchStats.keysChecked / elapsed);
+      const speed = elapsed > 0 ? Math.round(puzzleSearchStats.keysChecked / elapsed) : 0;
+
+      // Для sequential — посчитать % прогресса по этому воркеру
+      let progress = null;
+      if (mode === 'sequential') {
+        const done = BigInt('0x' + currentKey) - startBig;
+        // 4 знака после запятой — для маленьких процентов
+        const promille = Number((done * 1000000n) / (rangeSize === 0n ? 1n : rangeSize));
+        progress = promille / 10000; // %
+      }
 
       self.postMessage({
         puzzleStats: {
           keysChecked: puzzleSearchStats.keysChecked,
           speed: speed,
-          running: puzzleSearchRunning
+          running: puzzleSearchRunning,
+          progress: progress
         }
       });
       lastReportTime = now;
     }
 
-    // Даём браузеру "вздохнуть" каждые 500 ключей (для приёма stop команд)
-    await new Promise(r => setTimeout(r, 0));
+    // Реальная пауза между батчами — это и есть «дроссель» CPU.
+    // 0 ms всё равно отдаёт цикл event loop, поэтому stop-команды успевают прийти.
+    if (puzzleThrottleMs > 0) {
+      await new Promise(r => setTimeout(r, puzzleThrottleMs));
+    } else {
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  // Финальный отчёт (особенно важен когда sequential дошёл до конца своего диапазона)
+  if (sequentialDone) {
+    self.postMessage({
+      puzzleStats: {
+        keysChecked: puzzleSearchStats.keysChecked,
+        speed: 0,
+        running: false,
+        progress: 100,
+        done: true
+      }
+    });
   }
 
   console.log('[WASM] Puzzle search stopped. Total checked:', puzzleSearchStats.keysChecked);
@@ -367,11 +429,19 @@ function stopPuzzleSearch() {
 
 // Message handler
 self.onmessage = async function(e) {
-  const { position, privateKeyHex, addressesToGenerate, requestId, puzzleSearch, puzzleStop } = e.data;
+  const { position, privateKeyHex, addressesToGenerate, requestId, puzzleSearch, puzzleStop, puzzleUpdate } = e.data;
 
   // Stop puzzle search command
   if (puzzleStop) {
     stopPuzzleSearch();
+    return;
+  }
+
+  // Hot-update throttle while running (intensity / pause-when-hidden)
+  if (puzzleUpdate) {
+    if (typeof puzzleUpdate.throttleMs === 'number') {
+      puzzleThrottleMs = puzzleUpdate.throttleMs;
+    }
     return;
   }
 
@@ -387,9 +457,15 @@ self.onmessage = async function(e) {
 
   // Puzzle search mode - runs continuously until stopped or found
   if (puzzleSearch) {
-    const { targetAddress, rangeStart, rangeEnd } = puzzleSearch;
-    // Запускаем непрерывный поиск (не ждём результата - он придёт через postMessage)
-    runPuzzleSearch(targetAddress, rangeStart, rangeEnd);
+    const { targetAddress, rangeStart, rangeEnd, mode, throttleMs, batchSize } = puzzleSearch;
+    runPuzzleSearch(
+      targetAddress,
+      rangeStart,
+      rangeEnd,
+      mode || 'random',
+      typeof throttleMs === 'number' ? throttleMs : 0,
+      batchSize
+    );
     return;
   }
 
