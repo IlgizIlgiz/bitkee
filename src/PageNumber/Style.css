@@ -51,9 +51,10 @@
 
 .progress-value-overlay {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--accent-primary);
+  font-variant-numeric: tabular-nums;
   word-break: break-all;
   text-align: center;
   line-height: 1.4;
@@ -142,6 +143,7 @@
   left: 0;
   overflow: hidden;
   z-index: 1;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.5);
 }
 
 /* Static highlight on fill (removed shimmer animation) */
@@ -172,12 +174,12 @@
 }
 
 .indicator-dot {
-  width: 20px;
-  height: 20px;
-  background: var(--accent-primary);
+  width: 16px;
+  height: 16px;
+  background: #fff;
   border-radius: 50%;
-  border: 3px solid var(--text-primary);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+  border: none;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.30), 0 2px 6px rgba(0, 0, 0, 0.6);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -211,19 +213,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.03);
+  gap: 8px;
+  padding: 14px 14px 12px;
+  border-radius: 12px;
+  background: #0a0a13;
   border: 1px solid var(--border-subtle);
-  transition: all 0.25s ease;
+  transition: border-color .15s, background .15s;
   min-width: 0;
 }
 
 @media (hover: hover) {
   .balance-card:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--border-default);
+    border-color: var(--accent-primary);
+    background: rgba(99, 102, 241, 0.04);
   }
 }
 
@@ -267,58 +269,57 @@
 }
 
 .balance-card-label {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.12em;
   font-weight: 500;
   white-space: nowrap;
 }
 
 .balance-card-value {
   font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-weight: 600;
-  letter-spacing: -0.3px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   text-align: center;
   word-break: break-all;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 3px;
   justify-content: center;
   min-height: 18px;
 }
 
 .btc-suffix {
-  font-size: inherit;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);
-  opacity: 0.7;
+  margin-left: 2px;
 }
 
 /* Has balance - success state */
 .balance-card.has-balance {
-  border-color: var(--accent-success);
-  background: var(--accent-success-soft);
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.06);
 }
 
 .balance-card.has-balance .balance-icon {
-  color: var(--accent-success);
+  color: rgba(16, 185, 129, 0.8);
   opacity: 1;
 }
 
 .balance-card.has-balance .balance-card-label {
-  color: var(--accent-success);
+  color: rgba(16, 185, 129, 0.8);
 }
 
 .balance-card.has-balance .balance-card-value {
-  color: var(--accent-success);
+  color: var(--accent-success-bright);
 }
 
 .balance-card.has-balance .btc-suffix {
-  color: var(--accent-success);
-  opacity: 0.8;
+  color: rgba(52, 211, 156, 0.5);
 }
 
 /* Has received - warning state */
@@ -401,10 +402,10 @@
 
 .page-nav-btn {
   cursor: pointer;
-  transition: var(--transition);
+  transition: color .15s, background .15s, border-color .15s;
   padding: 0;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   display: flex;
@@ -416,9 +417,9 @@
 
 @media (hover: hover) {
   .page-nav-btn:hover {
-    background: var(--accent-primary-soft);
-    border-color: var(--accent-primary);
     color: var(--accent-primary);
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.35);
   }
 }
 
@@ -432,9 +433,11 @@
 
 .page-number {
   font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--accent-primary);
+  font-size: 14px;
+  color: var(--text-primary);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
   word-break: break-all;
   text-align: center;
   line-height: 1.4;

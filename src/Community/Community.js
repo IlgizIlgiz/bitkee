@@ -11,6 +11,10 @@ function Community(props) {
     return (
         <div className="header-menu">
             <div className="menu-left">
+                <div className="brand">
+                    <div className="brand-mark">B</div>
+                    <div className="brand-name">Bitkee<span> · keys explorer</span></div>
+                </div>
                 <a className="menu-item community-link" href="https://t.me/bitkeysapp" target="_blank" rel="noopener noreferrer">
                     <Send size={14} className="menu-icon" />
                     <span className="menu-text">{t('community')}</span>

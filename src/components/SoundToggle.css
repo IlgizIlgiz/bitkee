@@ -3,34 +3,34 @@
    ============================================ */
 
 .sound-toggle-btn {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: var(--transition);
-  outline: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  transition: color .15s, background .15s;
+  outline: none;
+  min-width: auto;
+  min-height: auto;
 }
 
 .sound-toggle-btn.enabled {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  color: var(--accent-primary);
 }
 
 .sound-toggle-btn.disabled {
-  border-color: var(--border-subtle);
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 @media (hover: hover) {
   .sound-toggle-btn:hover {
-    border-color: var(--color-primary);
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
   }
 }
 

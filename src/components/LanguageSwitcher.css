@@ -10,30 +10,32 @@
 }
 
 .language-current-btn {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: var(--transition);
-  outline: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-width: 56px;
-  min-height: 36px;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+  outline: none;
+  min-width: auto;
+  min-height: auto;
 }
 
 .language-current-btn .flag {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .language-current-btn .dropdown-arrow {
   font-size: 10px;
   color: var(--text-muted);
-  transition: transform var(--transition);
+  transition: transform .15s;
 }
 
 .language-current-btn.active .dropdown-arrow {
@@ -42,12 +44,13 @@
 
 @media (hover: hover) {
   .language-current-btn:hover {
-    border-color: var(--color-primary);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
   }
 }
 
 .language-current-btn.active {
-  border-color: var(--color-primary);
+  border-color: var(--accent-primary);
 }
 
 .language-current-btn:focus {
@@ -61,10 +64,11 @@
   margin-top: 4px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   overflow: hidden;
   z-index: 1000;
   min-width: 110px;
+  box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.8);
 }
 
 .language-option {
@@ -74,7 +78,7 @@
   padding: 10px 12px;
   cursor: pointer;
   font-size: 12px;
-  transition: var(--transition);
+  transition: color .15s, background .15s;
   outline: none;
   display: flex;
   align-items: center;
@@ -93,19 +97,19 @@
 }
 
 .language-option.current {
-  background: var(--color-primary-dim);
-  color: var(--color-primary);
+  background: var(--accent-primary-soft);
+  color: var(--accent-primary);
 }
 
 @media (hover: hover) {
   .language-option:hover {
-    background: var(--bg-elevated);
+    background: rgba(255, 255, 255, 0.04);
     color: var(--text-primary);
   }
 }
 
 .language-option:focus {
-  background: var(--bg-elevated);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 @media (max-width: 400px) {

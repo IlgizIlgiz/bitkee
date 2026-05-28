@@ -26,15 +26,17 @@
 
 /* Modal Container */
 .results {
-  background: var(--bg-elevated);
+  background: linear-gradient(180deg, rgba(20, 20, 32, 1), rgba(11, 11, 18, 1));
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
+  border-radius: 18px;
   width: 100%;
   max-width: 440px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.9);
 }
 
 /* Header */
@@ -42,8 +44,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 20px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.05), transparent);
 }
 
 .resHT {
@@ -52,7 +55,8 @@
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  letter-spacing: 0.04em;
 }
 
 .resHT svg {
@@ -62,33 +66,33 @@
 .resultsC {
   width: 32px;
   height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   background: transparent;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
-  transition: var(--transition);
+  transition: color .15s, background .15s;
+  color: var(--text-secondary);
 }
 
 @media (hover: hover) {
   .resultsC:hover {
-    background: var(--accent-danger-soft);
-    border-color: var(--accent-danger);
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
   }
 }
 
 .closeSvg {
   width: 14px;
   height: 14px;
-  color: var(--text-secondary);
-  transition: var(--transition);
+  color: inherit;
+  transition: color .15s;
 }
 
 @media (hover: hover) {
   .resultsC:hover .closeSvg {
-    color: var(--accent-danger);
+    color: var(--text-primary);
   }
 }
 
@@ -119,18 +123,18 @@
 
 /* History Item */
 .historyItem {
-  background: var(--bg-glass);
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
+  border-radius: 12px;
+  padding: 12px 14px;
   cursor: pointer;
-  transition: var(--transition);
+  transition: border-color .15s, background .15s;
 }
 
 @media (hover: hover) {
   .historyItem:hover {
     border-color: var(--accent-primary);
-    background: var(--accent-primary-soft);
+    background: rgba(99, 102, 241, 0.05);
   }
 }
 
@@ -140,7 +144,7 @@
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 500;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -153,16 +157,19 @@
   height: 6px;
   background: var(--accent-primary);
   border-radius: 50%;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.55);
 }
 
 /* History Item Page */
 .historyItemPage {
   font-family: var(--font-mono);
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--text-primary);
+  font-size: 13.5px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   word-break: break-all;
   line-height: 1.4;
+  letter-spacing: 0.01em;
 }
 
 /* End text */

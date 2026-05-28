@@ -5,6 +5,7 @@ import { openDB } from 'idb';
 import PageNumber from './PageNumber/PageNumber';
 import Results from './Results/Results';
 import Community from './Community/Community';
+import BottomNav from './components/BottomNav';
 import History from './History/History';
 import axios from "axios";
 import { X, Coins, Target, ClipboardList, BookOpen, Lightbulb, AlertTriangle, BarChart3 } from 'lucide-react';
@@ -2212,6 +2213,49 @@ function App() {
         </div>
       )}
 
+      <BottomNav
+        puzzleMode={puzzleMode}
+        onSwitchToPages={() => {
+          if (puzzleMode) {
+            initializeAudio();
+            puzzleModeRef.current = false;
+            setPuzzleMode(false);
+            setAutoRunning(false);
+            loadingRef.current = false;
+            setLoading(false);
+            setPuzzleStats({ checked: 0, startTime: null, speed: 0 });
+          }
+        }}
+        onSwitchToPuzzle={() => {
+          if (!puzzleMode) {
+            initializeAudio();
+            autoModeRef.current = false;
+            setAutoMode(false);
+            setAutoModeAI(false);
+            setAutoRunning(false);
+            setLocked(false);
+            setLockedSeconds(0);
+            loadingRef.current = false;
+            setLoading(false);
+            setPuzzleMode(true);
+            puzzleModeRef.current = false;
+            setPuzzleStats({ checked: 0, startTime: null, speed: 0 });
+            fetchPuzzleBalances();
+          }
+        }}
+        onOpenCommunity={() => {
+          initializeAudio();
+          window.open('https://t.me/bitkeysapp', '_blank');
+        }}
+        onOpenInfo={() => {
+          initializeAudio();
+          setShowIntro(true);
+        }}
+        onOpenHistory={() => {
+          initializeAudio();
+          setShowHistory(true);
+        }}
+      />
     </div>
   );
 }
