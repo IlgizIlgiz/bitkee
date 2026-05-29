@@ -6,6 +6,21 @@
 // Updated: January 2026
 
 export const BITCOIN_PUZZLES = [
+  // TEST PUZZLE — узкий диапазон (2^16 = 65536 ключей), БЕЗ реального баланса.
+  // Адрес = compressed-адрес приватного ключа 0x1abcd (109517) внутри диапазона.
+  // Решается поиском за ~10 сек (sequential), нужен для проверки, что находка работает.
+  {
+    id: 0,
+    name: "🧪 Test Puzzle",
+    address: "187NV15KwFeijFa4EHCXyTFJA9Hvdjo4y8",
+    rangeStart: "10000",
+    rangeEnd: "1ffff",
+    reward: 0,
+    bits: 17,
+    rangeSize: "65536", // 2^16
+    solved: false,
+    test: true
+  },
   // SOLVED PUZZLES (kept for reference, marked as solved)
   {
     id: 66,
