@@ -2,27 +2,12 @@ use wasm_bindgen::prelude::*;
 use k256::{SecretKey, elliptic_curve::sec1::ToEncodedPoint};
 use sha2::{Sha256, Digest};
 use ripemd::Ripemd160;
-use serde::Serialize;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
 
 /// Initialize panic hook for better error messages
 #[wasm_bindgen(start)]
 pub fn init() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
-}
-
-/// Address data structure returned to JS
-#[derive(Serialize)]
-pub struct AddressData {
-    pub private_key: String,
-    pub address_uncompressed: String,
-    pub address_compressed: String,
 }
 
 /// Hash160 = RIPEMD160(SHA256(data))
@@ -62,6 +47,22 @@ fn generate_address(private_key_bytes: &[u8; 32], compressed: bool) -> String {
     pubkey_hash_to_address(&pubkey_hash)
 }
 
+/// Compute BOTH the compressed and uncompressed P2PKH addresses for a private key,
+/// deriving the public-key point only ONCE. The point multiplication dominates cost, so
+/// sharing it across both encodings roughly halves the per-key work vs calling
+/// `generate_address` twice. Returns None for an invalid key (out of curve order).
+fn generate_addresses_both(private_key_bytes: &[u8; 32]) -> Option<(String, String)> {
+    let secret_key = SecretKey::from_slice(private_key_bytes).ok()?;
+    let public_key = secret_key.public_key(); // single scalar*point multiplication
+
+    let comp = public_key.to_encoded_point(true);
+    let uncomp = public_key.to_encoded_point(false);
+
+    let comp_addr = pubkey_hash_to_address(&hash160(comp.as_bytes()));
+    let uncomp_addr = pubkey_hash_to_address(&hash160(uncomp.as_bytes()));
+    Some((comp_addr, uncomp_addr))
+}
+
 /// Parse hex string to bytes
 fn hex_to_bytes(hex: &str) -> Option<[u8; 32]> {
     if hex.len() != 64 {
@@ -70,7 +71,7 @@ fn hex_to_bytes(hex: &str) -> Option<[u8; 32]> {
 
     let mut bytes = [0u8; 32];
     for i in 0..32 {
-        bytes[i] = u8::from_str_radix(&hex[i*2..i*2+2], 16).ok()?;
+        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
     }
     Some(bytes)
 }
@@ -80,7 +81,7 @@ fn bytes_to_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
-/// Add two 256-bit numbers (big-endian bytes)
+/// Add a value to a 256-bit big-endian key, in place (wrapping at 2^256)
 fn add_to_key(key: &mut [u8; 32], value: u64) {
     let mut carry = value as u128;
     for i in (0..32).rev() {
@@ -90,110 +91,14 @@ fn add_to_key(key: &mut [u8; 32], value: u64) {
     }
 }
 
-/// Generate a batch of addresses starting from a private key
-/// Returns JSON array of address objects
-#[wasm_bindgen]
-pub fn generate_addresses_batch(start_key_hex: &str, count: u32) -> JsValue {
-    let mut results: Vec<AddressData> = Vec::with_capacity(count as usize);
-
-    let mut current_key = match hex_to_bytes(start_key_hex) {
-        Some(k) => k,
-        None => return JsValue::NULL,
-    };
-
-    for i in 0..count {
-        if i > 0 {
-            add_to_key(&mut current_key, 1);
-        }
-
-        let addr_uncompressed = generate_address(&current_key, false);
-        let addr_compressed = generate_address(&current_key, true);
-
-        results.push(AddressData {
-            private_key: bytes_to_hex(&current_key),
-            address_uncompressed: addr_uncompressed,
-            address_compressed: addr_compressed,
-        });
-    }
-
-    serde_wasm_bindgen::to_value(&results).unwrap_or(JsValue::NULL)
-}
-
-/// Generate a single address (for testing)
-#[wasm_bindgen]
-pub fn generate_single_address(private_key_hex: &str, compressed: bool) -> String {
-    match hex_to_bytes(private_key_hex) {
-        Some(key) => generate_address(&key, compressed),
-        None => String::from("invalid_key"),
-    }
-}
-
-/// Benchmark function - generate N addresses and return time
-#[wasm_bindgen]
-pub fn benchmark(count: u32) -> f64 {
-    let start = js_sys::Date::now();
-
-    let start_key = [0u8; 32];
-    let mut current_key = start_key;
-    current_key[31] = 1; // Start from key = 1
-
-    for _ in 0..count {
-        let _ = generate_address(&current_key, false);
-        let _ = generate_address(&current_key, true);
-        add_to_key(&mut current_key, 1);
-    }
-
-    js_sys::Date::now() - start
-}
-
-/// Result of puzzle search iteration
-#[derive(Serialize)]
-pub struct PuzzleSearchResult {
-    pub found: bool,
-    pub private_key_hex: Option<String>,
-    pub private_key_wif: Option<String>,
-    pub address_found: Option<String>,
-    pub keys_checked: u32,
-}
-
-/// Generate random key within range [start, end]
-fn generate_random_key_in_range(range_start: &[u8; 32], range_end: &[u8; 32]) -> [u8; 32] {
-    use getrandom::getrandom;
-
-    // Calculate range size
-    let mut range_size = [0u8; 32];
-    let mut borrow = 0u16;
-    for i in (0..32).rev() {
-        let diff = range_end[i] as i16 - range_start[i] as i16 - borrow as i16;
-        if diff < 0 {
-            range_size[i] = (diff + 256) as u8;
-            borrow = 1;
-        } else {
-            range_size[i] = diff as u8;
-            borrow = 0;
-        }
-    }
-
-    // Generate random bytes
-    let mut random_bytes = [0u8; 32];
-    let _ = getrandom(&mut random_bytes);
-
-    // Modulo range_size (simplified: just AND with range_size for similar bit length)
-    // This is not perfectly uniform but fast and good enough
+/// Compare two 256-bit big-endian numbers
+fn cmp_be(a: &[u8; 32], b: &[u8; 32]) -> core::cmp::Ordering {
     for i in 0..32 {
-        random_bytes[i] &= range_size[i] | (range_size[i].wrapping_sub(1));
+        if a[i] != b[i] {
+            return a[i].cmp(&b[i]);
+        }
     }
-
-    // Add to range_start
-    let mut result = *range_start;
-    let mut carry = 0u16;
-    for i in (0..32).rev() {
-        let sum = result[i] as u16 + random_bytes[i] as u16 + carry;
-        result[i] = (sum & 0xff) as u8;
-        carry = sum >> 8;
-    }
-
-    result
+    core::cmp::Ordering::Equal
 }
 
 /// Convert private key to WIF format
@@ -211,83 +116,191 @@ fn private_key_to_wif(key: &[u8; 32], compressed: bool) -> String {
     bs58::encode(payload).into_string()
 }
 
-/// Puzzle search - runs entirely in WASM for maximum speed
-/// Returns when found or after `iterations` checks
+/// Generate a single address from a hex private key.
+/// Used by the normal address-generation worker path (manual/auto modes).
 #[wasm_bindgen]
-pub fn puzzle_search(
+pub fn generate_single_address(private_key_hex: &str, compressed: bool) -> String {
+    match hex_to_bytes(private_key_hex) {
+        Some(key) => generate_address(&key, compressed),
+        None => String::from("invalid_key"),
+    }
+}
+
+const ERR_JSON: &str = r#"{"found":false,"error":"invalid_input","checked":0,"done":true}"#;
+
+/// Check a batch of CONSECUTIVE keys starting at `start_key_hex`, for up to
+/// `iterations` keys or until `end_key_hex` (inclusive) — whichever comes first.
+///
+/// One call replaces what used to be `iterations` separate JS→WASM string round-trips
+/// (`generate_single_address` per key). The whole inner loop now runs inside WASM.
+///
+/// Covers both puzzle-search modes:
+///  - sequential: the worker passes its current position as `start_key_hex`.
+///  - random:     the worker passes a random segment start (from `crypto.getRandomValues`
+///                via the existing, correct JS `generateRandomKeyInRange`), so no RNG is
+///                needed inside Rust at all.
+///
+/// Returns a JSON string (kept as `String` so the worker's minimal hand-written glue
+/// works without serde marshalling):
+///   found: {"found":true,"key":"<hex>","wif":"<wif>","address":"<addr>","checked":N,"done":false}
+///   miss:  {"found":false,"key":null,"wif":null,"address":null,"checked":N,"next_key":"<hex>","done":bool}
+///   error: {"found":false,"error":"invalid_input","checked":0,"done":true}
+#[wasm_bindgen]
+pub fn check_keys_batch(
     target_address: &str,
-    range_start_hex: &str,
-    range_end_hex: &str,
+    start_key_hex: &str,
+    end_key_hex: &str,
     iterations: u32,
-) -> JsValue {
-    let range_start = match hex_to_bytes(range_start_hex) {
+) -> String {
+    let start = match hex_to_bytes(start_key_hex) {
         Some(k) => k,
-        None => return serde_wasm_bindgen::to_value(&PuzzleSearchResult {
-            found: false,
-            private_key_hex: None,
-            private_key_wif: None,
-            address_found: None,
-            keys_checked: 0,
-        }).unwrap_or(JsValue::NULL),
+        None => return String::from(ERR_JSON),
+    };
+    let end = match hex_to_bytes(end_key_hex) {
+        Some(k) => k,
+        None => return String::from(ERR_JSON),
     };
 
-    let range_end = match hex_to_bytes(range_end_hex) {
-        Some(k) => k,
-        None => return serde_wasm_bindgen::to_value(&PuzzleSearchResult {
-            found: false,
-            private_key_hex: None,
-            private_key_wif: None,
-            address_found: None,
-            keys_checked: 0,
-        }).unwrap_or(JsValue::NULL),
-    };
+    let mut current = start;
+    let mut checked: u32 = 0;
 
-    for _ in 0..iterations {
-        let key = generate_random_key_in_range(&range_start, &range_end);
-
-        // Check compressed address (most puzzle addresses are compressed)
-        let addr_compressed = generate_address(&key, true);
-        if addr_compressed == target_address {
-            return serde_wasm_bindgen::to_value(&PuzzleSearchResult {
-                found: true,
-                private_key_hex: Some(bytes_to_hex(&key)),
-                private_key_wif: Some(private_key_to_wif(&key, true)),
-                address_found: Some(addr_compressed),
-                keys_checked: iterations,
-            }).unwrap_or(JsValue::NULL);
+    while checked < iterations {
+        // Past the end of the range — nothing more to check here.
+        if cmp_be(&current, &end) == core::cmp::Ordering::Greater {
+            return format!(
+                r#"{{"found":false,"key":null,"wif":null,"address":null,"checked":{},"next_key":"{}","done":true}}"#,
+                checked,
+                bytes_to_hex(&current)
+            );
         }
 
-        // Also check uncompressed (in case target is uncompressed)
-        let addr_uncompressed = generate_address(&key, false);
-        if addr_uncompressed == target_address {
-            return serde_wasm_bindgen::to_value(&PuzzleSearchResult {
-                found: true,
-                private_key_hex: Some(bytes_to_hex(&key)),
-                private_key_wif: Some(private_key_to_wif(&key, false)),
-                address_found: Some(addr_uncompressed),
-                keys_checked: iterations,
-            }).unwrap_or(JsValue::NULL);
+        // Derive both address forms from a single point multiplication.
+        // (None = key out of curve order — can't match any target, just skip it.)
+        if let Some((addr_compressed, addr_uncompressed)) = generate_addresses_both(&current) {
+            // Most puzzle addresses are compressed — check that variant first.
+            if addr_compressed == target_address {
+                return format!(
+                    r#"{{"found":true,"key":"{}","wif":"{}","address":"{}","checked":{},"done":false}}"#,
+                    bytes_to_hex(&current),
+                    private_key_to_wif(&current, true),
+                    addr_compressed,
+                    checked + 1
+                );
+            }
+            if addr_uncompressed == target_address {
+                return format!(
+                    r#"{{"found":true,"key":"{}","wif":"{}","address":"{}","checked":{},"done":false}}"#,
+                    bytes_to_hex(&current),
+                    private_key_to_wif(&current, false),
+                    addr_uncompressed,
+                    checked + 1
+                );
+            }
         }
+
+        checked += 1;
+
+        // Reached the inclusive end exactly — range fully scanned.
+        if cmp_be(&current, &end) == core::cmp::Ordering::Equal {
+            return format!(
+                r#"{{"found":false,"key":null,"wif":null,"address":null,"checked":{},"next_key":"{}","done":true}}"#,
+                checked,
+                bytes_to_hex(&end)
+            );
+        }
+
+        add_to_key(&mut current, 1);
     }
 
-    serde_wasm_bindgen::to_value(&PuzzleSearchResult {
-        found: false,
-        private_key_hex: None,
-        private_key_wif: None,
-        address_found: None,
-        keys_checked: iterations,
-    }).unwrap_or(JsValue::NULL)
+    // Batch budget exhausted before reaching the end — report where to resume.
+    format!(
+        r#"{{"found":false,"key":null,"wif":null,"address":null,"checked":{},"next_key":"{}","done":false}}"#,
+        checked,
+        bytes_to_hex(&current)
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn hexkey(s: &str) -> [u8; 32] {
+        hex_to_bytes(s).unwrap()
+    }
+
+    const K01: &str = "0000000000000000000000000000000000000000000000000000000000000001";
+    const K0A: &str = "000000000000000000000000000000000000000000000000000000000000000a";
+
     #[test]
     fn test_known_address() {
-        // Test vector: private key = 1
-        let key = hex_to_bytes("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
-        let addr = generate_address(&key, false);
-        assert_eq!(addr, "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH");
+        // Test vector: private key = 1 (canonical secp256k1 generator point).
+        let key = hexkey(K01);
+        // Uncompressed P2PKH address
+        assert_eq!(generate_address(&key, false), "1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm");
+        // Compressed P2PKH address
+        assert_eq!(generate_address(&key, true), "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH");
+    }
+
+    #[test]
+    fn test_add_to_key_carry() {
+        let mut key = hexkey("00000000000000000000000000000000000000000000000000000000000000ff");
+        add_to_key(&mut key, 1);
+        assert_eq!(
+            bytes_to_hex(&key),
+            "0000000000000000000000000000000000000000000000000000000000000100"
+        );
+    }
+
+    #[test]
+    fn test_cmp_be() {
+        let a = hexkey("0000000000000000000000000000000000000000000000000000000000000005");
+        let b = hexkey(K0A);
+        assert_eq!(cmp_be(&a, &b), core::cmp::Ordering::Less);
+        assert_eq!(cmp_be(&b, &a), core::cmp::Ordering::Greater);
+        assert_eq!(cmp_be(&a, &a), core::cmp::Ordering::Equal);
+    }
+
+    #[test]
+    fn test_batch_finds_key() {
+        // target = compressed address of key 0x05, search range [01..0a]
+        let key5 = hexkey("0000000000000000000000000000000000000000000000000000000000000005");
+        let target = generate_address(&key5, true);
+
+        let json = check_keys_batch(&target, K01, K0A, 10);
+
+        assert!(json.contains(r#""found":true"#), "json={}", json);
+        assert!(
+            json.contains(r#""key":"0000000000000000000000000000000000000000000000000000000000000005""#),
+            "json={}",
+            json
+        );
+        // WIF must match the canonical encoding
+        let expected_wif = private_key_to_wif(&key5, true);
+        assert!(json.contains(&format!(r#""wif":"{}""#, expected_wif)), "json={}", json);
+        // keys 1..5 inspected → checked == 5
+        assert!(json.contains(r#""checked":5"#), "json={}", json);
+    }
+
+    #[test]
+    fn test_batch_not_found_done() {
+        // A burn address that no key in [01..0a] maps to.
+        let json = check_keys_batch("1BitcoinEaterAddressDontSendf59kuE", K01, K0A, 100);
+        assert!(json.contains(r#""found":false"#), "json={}", json);
+        assert!(json.contains(r#""done":true"#), "json={}", json);
+        // Range is 10 keys (01..0a inclusive)
+        assert!(json.contains(r#""checked":10"#), "json={}", json);
+    }
+
+    #[test]
+    fn test_batch_resume_next_key() {
+        // iterations < range size: check 01,02,03 then resume at 04
+        let json = check_keys_batch("1BitcoinEaterAddressDontSendf59kuE", K01, K0A, 3);
+        assert!(json.contains(r#""checked":3"#), "json={}", json);
+        assert!(json.contains(r#""done":false"#), "json={}", json);
+        assert!(
+            json.contains(r#""next_key":"0000000000000000000000000000000000000000000000000000000000000004""#),
+            "json={}",
+            json
+        );
     }
 }

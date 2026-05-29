@@ -1,135 +1,56 @@
 // wasmWorker.js - WASM-based address generation worker
-// This worker loads and runs the WASM module directly
+// Loads the wasm-bindgen-generated glue (btc_wasm.js, built with `--target no-modules`)
+// via importScripts and drives it. The glue defines a global `wasm_bindgen` init function
+// with the exported functions attached: generate_single_address, check_keys_batch.
+// See wasm/btc_wasm/BUILD.md for how to rebuild btc_wasm_bg.wasm + btc_wasm.js.
 
-let wasm = null;
+/* global wasm_bindgen, importScripts */
+
 let wasmReady = false;
+let wasmInitPromise = null;
 
-// Text encoding/decoding utilities
-const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
-const textEncoder = new TextEncoder();
-let cachedMemory = null;
+// Load WASM via the generated glue.
+// Singleton: concurrent callers (eager init on load + the first onmessage) share one promise,
+// so importScripts runs at most once — re-running it would re-execute `let wasm_bindgen = ...`
+// and throw "Identifier 'wasm_bindgen' has already been declared".
+function initWasm() {
+  if (wasmReady) return Promise.resolve(true);
+  if (wasmInitPromise) return wasmInitPromise;
 
-function getMemory() {
-  if (cachedMemory === null || cachedMemory.buffer !== wasm.memory.buffer) {
-    cachedMemory = new Uint8Array(wasm.memory.buffer);
-  }
-  return cachedMemory;
-}
+  wasmInitPromise = (async () => {
+    try {
+      // btc_wasm.js defines a global `wasm_bindgen` init function (no-modules build).
+      if (typeof wasm_bindgen === 'undefined') {
+        importScripts('/wasm/btc_wasm.js');
+      }
+      // Initialize the module. The wasm path must be passed explicitly — `document.currentScript`
+      // (the glue's auto-detection) is unavailable inside a worker.
+      await wasm_bindgen({ module_or_path: '/wasm/btc_wasm_bg.wasm' });
 
-function getStringFromWasm(ptr, len) {
-  return textDecoder.decode(getMemory().subarray(ptr, ptr + len));
-}
-
-let WASM_VECTOR_LEN = 0;
-
-function passStringToWasm(arg) {
-  const buf = textEncoder.encode(arg);
-  const ptr = wasm.__wbindgen_malloc(buf.length, 1) >>> 0;
-  getMemory().subarray(ptr, ptr + buf.length).set(buf);
-  WASM_VECTOR_LEN = buf.length;
-  return ptr;
-}
-
-// WASM imports
-function createImports() {
-  const imports = { wbg: {} };
-
-  imports.wbg.__wbg___wbindgen_throw_dd24417ed36fc46e = function(arg0, arg1) {
-    throw new Error(getStringFromWasm(arg0, arg1));
-  };
-
-  imports.wbg.__wbg_error_7534b8e9a36f1ab4 = function(arg0, arg1) {
-    console.error(getStringFromWasm(arg0, arg1));
-    wasm.__wbindgen_free(arg0, arg1, 1);
-  };
-
-  imports.wbg.__wbg_new_1ba21ce319a06297 = function() {
-    return {};
-  };
-
-  imports.wbg.__wbg_new_25f239778d6112b9 = function() {
-    return [];
-  };
-
-  imports.wbg.__wbg_new_8a6f238a6ece86ea = function() {
-    return new Error();
-  };
-
-  imports.wbg.__wbg_now_69d776cd24f5215b = function() {
-    return Date.now();
-  };
-
-  imports.wbg.__wbg_set_3f1d0b984ed272ed = function(arg0, arg1, arg2) {
-    arg0[arg1] = arg2;
-  };
-
-  imports.wbg.__wbg_set_7df433eea03a5c14 = function(arg0, arg1, arg2) {
-    arg0[arg1 >>> 0] = arg2;
-  };
-
-  imports.wbg.__wbg_stack_0ed75d68575b0f3c = function(arg0, arg1) {
-    const ret = arg1.stack;
-    const ptr = passStringToWasm(ret);
-    const len = WASM_VECTOR_LEN;
-    const view = new DataView(wasm.memory.buffer);
-    view.setInt32(arg0 + 4, len, true);
-    view.setInt32(arg0, ptr, true);
-  };
-
-  imports.wbg.__wbindgen_cast_2241b6af4c4b2941 = function(arg0, arg1) {
-    return getStringFromWasm(arg0, arg1);
-  };
-
-  imports.wbg.__wbindgen_init_externref_table = function() {
-    const table = wasm.__wbindgen_externrefs;
-    const offset = table.grow(4);
-    table.set(0, undefined);
-    table.set(offset + 0, undefined);
-    table.set(offset + 1, null);
-    table.set(offset + 2, true);
-    table.set(offset + 3, false);
-  };
-
-  return imports;
-}
-
-// Load WASM
-async function initWasm() {
-  if (wasmReady) return true;
-
-  try {
-    const response = await fetch('/wasm/btc_wasm_bg.wasm');
-    const wasmBytes = await response.arrayBuffer();
-    const imports = createImports();
-    const { instance } = await WebAssembly.instantiate(wasmBytes, imports);
-    wasm = instance.exports;
-    cachedMemory = null;
-
-    // Initialize externref table
-    if (wasm.__wbindgen_externrefs) {
-      wasm.__wbindgen_init_externref_table?.();
+      wasmReady = true;
+      console.log('[WASM Worker] Module loaded successfully');
+      return true;
+    } catch (error) {
+      console.error('[WASM Worker] Failed to load:', error);
+      wasmInitPromise = null; // allow a later retry
+      return false;
     }
+  })();
 
-    // Call WASM start function
-    wasm.__wbindgen_start?.();
-
-    wasmReady = true;
-    console.log('[WASM Worker] Module loaded successfully');
-    return true;
-  } catch (error) {
-    console.error('[WASM Worker] Failed to load:', error);
-    return false;
-  }
+  return wasmInitPromise;
 }
 
-// Generate single address using WASM
+// Generate a single address using WASM (used by the normal manual/auto generation path).
 function generateSingleAddress(privateKeyHex, compressed) {
-  const ptr = passStringToWasm(privateKeyHex);
-  const len = WASM_VECTOR_LEN;
-  const ret = wasm.generate_single_address(ptr, len, compressed);
-  const result = getStringFromWasm(ret[0], ret[1]);
-  wasm.__wbindgen_free(ret[0], ret[1], 1);
-  return result;
+  return wasm_bindgen.generate_single_address(privateKeyHex, compressed);
+}
+
+// Check a batch of CONSECUTIVE keys entirely inside WASM — one JS↔WASM round-trip per batch
+// instead of per key. Returns the parsed result object:
+//   { found, key, wif, address, checked, next_key, done }
+function checkKeysBatch(targetAddress, startHex, endHex, iterations) {
+  const json = wasm_bindgen.check_keys_batch(targetAddress, startHex, endHex, iterations >>> 0);
+  return JSON.parse(json);
 }
 
 // Generate batch of addresses
@@ -280,21 +201,20 @@ let puzzleSearchRunning = false;
 let puzzleSearchStats = { keysChecked: 0, startTime: 0, found: false, result: null };
 let puzzleThrottleMs = 0; // Реальная пауза между батчами (управляется главным потоком)
 
-// Increment a 64-char hex private key by 1 (BigInt arithmetic)
-function incrementHexKey(hexKey) {
-  const next = BigInt('0x' + hexKey) + 1n;
-  return next.toString(16).padStart(64, '0');
-}
-
-// Continuous puzzle search - runs until stopped or found
+// Continuous puzzle search - runs until stopped or found.
 // mode: 'sequential' | 'random'
-// rangeStartHex/rangeEndHex — границы поиска для этого воркера (уже разрезанные)
+// rangeStartHex/rangeEndHex — границы поиска для этого воркера (уже разрезанные главным потоком).
+//
+// Весь внутренний цикл проверки ключей выполняется ВНУТРИ WASM (check_keys_batch): один
+// JS↔WASM round-trip на БАТЧ вместо одного на каждый ключ. Это и даёт основной прирост скорости.
 async function runPuzzleSearch(targetAddress, rangeStartHex, rangeEndHex, mode, throttleMs, batchSize) {
   puzzleSearchRunning = true;
   puzzleSearchStats = { keysChecked: 0, startTime: Date.now(), found: false, result: null };
   puzzleThrottleMs = typeof throttleMs === 'number' ? throttleMs : 0;
 
-  const BATCH_SIZE = batchSize && batchSize > 0 ? batchSize : 500;
+  // Один батч проверяется атомарно внутри WASM, поэтому stop срабатывает между батчами.
+  // Держим батч умеренным (~сотни мс макс) ради отзывчивости stop/throttle.
+  const BATCH_SIZE = batchSize && batchSize > 0 ? batchSize : 1000;
   const REPORT_INTERVAL = 1000;
   let lastReportTime = Date.now();
 
@@ -305,69 +225,44 @@ async function runPuzzleSearch(targetAddress, rangeStartHex, rangeEndHex, mode, 
   const endBig = BigInt('0x' + endHex);
   const rangeSize = endBig - startBig + 1n;
 
-  // Для sequential — текущий ключ начинается со старта диапазона
+  // Для sequential — текущая позиция; для random — пересчитывается каждый батч.
   let currentKey = startHex;
   let sequentialDone = false;
 
-  console.log('[WASM] Starting puzzle search:', { targetAddress, mode, throttleMs: puzzleThrottleMs, startHex, endHex });
+  console.log('[WASM] Starting puzzle search:', { targetAddress, mode, throttleMs: puzzleThrottleMs, startHex, endHex, BATCH_SIZE });
+
+  const emitFound = (r) => {
+    puzzleSearchStats.found = true;
+    puzzleSearchStats.result = {
+      found: true,
+      private_key_hex: r.key,
+      private_key_wif: r.wif,
+      address_found: r.address,
+      keys_checked: puzzleSearchStats.keysChecked
+    };
+    puzzleSearchRunning = false;
+    self.postMessage({ puzzleResult: puzzleSearchStats.result });
+  };
 
   while (puzzleSearchRunning && !puzzleSearchStats.found && !sequentialDone) {
-    // Проверяем батч ключей
-    for (let i = 0; i < BATCH_SIZE && puzzleSearchRunning; i++) {
-      let testKey;
-      if (mode === 'sequential') {
-        testKey = currentKey;
-        // Подготовим следующий ключ; если перевалили endHex — стоп
-        if (BigInt('0x' + currentKey) >= endBig) {
-          sequentialDone = true;
-          puzzleSearchStats.keysChecked += i + 1;
-          break;
-        }
-        currentKey = incrementHexKey(currentKey);
-      } else {
-        testKey = generateRandomKeyInRange(startHex, endHex);
-      }
-
-      // Проверяем compressed адрес (большинство puzzle адресов compressed)
-      const addrCompressed = generateSingleAddress(testKey, true);
-
-      if (addrCompressed === targetAddress) {
-        const wif = await privateKeyToWIF(testKey, true);
-        puzzleSearchStats.found = true;
-        puzzleSearchStats.result = {
-          found: true,
-          private_key_hex: testKey,
-          private_key_wif: wif,
-          address_found: addrCompressed,
-          keys_checked: puzzleSearchStats.keysChecked + i + 1
-        };
-        puzzleSearchRunning = false;
-
-        self.postMessage({ puzzleResult: puzzleSearchStats.result });
-        return;
-      }
-
-      // Также проверяем uncompressed
-      const addrUncompressed = generateSingleAddress(testKey, false);
-      if (addrUncompressed === targetAddress) {
-        const wif = await privateKeyToWIF(testKey, false);
-        puzzleSearchStats.found = true;
-        puzzleSearchStats.result = {
-          found: true,
-          private_key_hex: testKey,
-          private_key_wif: wif,
-          address_found: addrUncompressed,
-          keys_checked: puzzleSearchStats.keysChecked + i + 1
-        };
-        puzzleSearchRunning = false;
-
-        self.postMessage({ puzzleResult: puzzleSearchStats.result });
-        return;
-      }
-    }
-
-    if (!sequentialDone) {
-      puzzleSearchStats.keysChecked += BATCH_SIZE;
+    let res;
+    if (mode === 'sequential') {
+      // Проверяем BATCH_SIZE последовательных ключей от текущей позиции, не выходя за endHex.
+      res = checkKeysBatch(targetAddress, currentKey, endHex, BATCH_SIZE);
+      puzzleSearchStats.keysChecked += res.checked;
+      if (res.found) { emitFound(res); return; }
+      currentKey = res.next_key;
+      if (res.done) sequentialDone = true;
+    } else {
+      // random: случайный старт сегмента (корректная JS-генерация ключа в диапазоне) →
+      // проверяем сегмент из BATCH_SIZE последовательных ключей, не выходя за endHex.
+      const segStart = generateRandomKeyInRange(startHex, endHex);
+      let segEndBig = BigInt('0x' + segStart) + BigInt(BATCH_SIZE - 1);
+      if (segEndBig > endBig) segEndBig = endBig;
+      const segEnd = segEndBig.toString(16).padStart(64, '0');
+      res = checkKeysBatch(targetAddress, segStart, segEnd, BATCH_SIZE);
+      puzzleSearchStats.keysChecked += res.checked;
+      if (res.found) { emitFound(res); return; }
     }
 
     // Отправляем статистику каждую секунду
@@ -397,12 +292,8 @@ async function runPuzzleSearch(targetAddress, rangeStartHex, rangeEndHex, mode, 
     }
 
     // Реальная пауза между батчами — это и есть «дроссель» CPU.
-    // 0 ms всё равно отдаёт цикл event loop, поэтому stop-команды успевают прийти.
-    if (puzzleThrottleMs > 0) {
-      await new Promise(r => setTimeout(r, puzzleThrottleMs));
-    } else {
-      await new Promise(r => setTimeout(r, 0));
-    }
+    // 0 ms всё равно отдаёт цикл event loop, поэтому stop/throttle-команды успевают прийти.
+    await new Promise(r => setTimeout(r, puzzleThrottleMs > 0 ? puzzleThrottleMs : 0));
   }
 
   // Финальный отчёт (особенно важен когда sequential дошёл до конца своего диапазона)
