@@ -672,8 +672,19 @@ function App() {
     });
     puzzleWorkersRef.current = [];
 
-    // Разрезаем диапазон на N подотрезков
-    const subranges = splitPuzzleRange(puzzle.rangeStart, puzzle.rangeEnd, numWorkers, startPercent);
+    // Разрезаем диапазон на подотрезки.
+    // ВАЖНО: разрезание (по одному куску на воркера) уместно ТОЛЬКО для sequential —
+    // там каждый воркер линейно проходит свой кусок, вместе покрывая всё без дублей.
+    // Для random разрезание ВРЕДНО: ключ лежит в одном куске, и только 1 воркер из N
+    // его ищет, остальные впустую жгут CPU в кусках без ключа. Поэтому в random отдаём
+    // КАЖДОМУ воркеру весь диапазон — тогда все N покрывают пространство в N раз быстрее.
+    let subranges;
+    if (mode === 'random') {
+      const [full] = splitPuzzleRange(puzzle.rangeStart, puzzle.rangeEnd, 1, startPercent);
+      subranges = Array.from({ length: numWorkers }, () => ({ ...full }));
+    } else {
+      subranges = splitPuzzleRange(puzzle.rangeStart, puzzle.rangeEnd, numWorkers, startPercent);
+    }
 
     // Создаём новые воркеры
     for (let i = 0; i < numWorkers; i++) {
@@ -2045,37 +2056,29 @@ function App() {
 
               </div>
 
-              {/* Puzzle Start/Stop button */}
+              {/* Puzzle Start/Stop button — запуск разрешён и для решённых пазлов
+                  (для наблюдения/обучения: видно, как идёт перебор). */}
               <div className="puzzle-start-section">
-                {isPuzzleSolved(selectedPuzzle.id) ? (
-                  <button
-                    className="universal-btn puzzle-btn solved-disabled"
-                    disabled
-                  >
-                    {t('puzzleSolved')}
-                  </button>
-                ) : (
-                  <button
-                    className={`universal-btn puzzle-btn ${autoRunning ? 'running' : ''}`}
-                    onClick={() => {
-                      initializeAudio();
-                      if (autoRunning) {
-                        // Stop - keep stats visible, worker keeps running until stopped
-                        stopPuzzleSearch();
-                        puzzleModeRef.current = false;
-                        setAutoRunning(false);
-                      } else {
-                        // Start - reset stats and begin continuous search
-                        puzzleModeRef.current = true;
-                        setAutoRunning(true);
-                        setPuzzleStats({ checked: 0, startTime: Date.now(), speed: 0 });
-                        startPuzzleSearch();
-                      }
-                    }}
-                  >
-                    {autoRunning ? t('stop') : t('start')}
-                  </button>
-                )}
+                <button
+                  className={`universal-btn puzzle-btn ${autoRunning ? 'running' : ''}`}
+                  onClick={() => {
+                    initializeAudio();
+                    if (autoRunning) {
+                      // Stop - keep stats visible, worker keeps running until stopped
+                      stopPuzzleSearch();
+                      puzzleModeRef.current = false;
+                      setAutoRunning(false);
+                    } else {
+                      // Start - reset stats and begin continuous search
+                      puzzleModeRef.current = true;
+                      setAutoRunning(true);
+                      setPuzzleStats({ checked: 0, startTime: Date.now(), speed: 0 });
+                      startPuzzleSearch();
+                    }
+                  }}
+                >
+                  {autoRunning ? t('stop') : t('start')}
+                </button>
               </div>
             </div>
           )}

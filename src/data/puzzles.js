@@ -21,6 +21,25 @@ export const BITCOIN_PUZZLES = [
     solved: false,
     isTest: true
   },
+  // SMALL SOLVED PUZZLES — настоящие решённые пазлы Bitcoin Puzzle с малыми диапазонами.
+  // Реально перебираются за секунды — для демонстрации «как находит» на настоящих адресах.
+  // (Адреса сверены: #1 = 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH — канонический Puzzle #1.)
+  {
+    id: 10, name: "Puzzle #10", address: "1LeBZP5QCwwgXRtmVUvTVrraqPUokyLHqe",
+    rangeStart: "200", rangeEnd: "3ff", reward: 0, bits: 10, rangeSize: "512", solved: true, solvedDate: "2016"
+  },
+  {
+    id: 13, name: "Puzzle #13", address: "1Pie8JkxBT6MGPz9Nvi3fsPkr2D8q3GBc1",
+    rangeStart: "1000", rangeEnd: "1fff", reward: 0, bits: 13, rangeSize: "4096", solved: true, solvedDate: "2016"
+  },
+  {
+    id: 15, name: "Puzzle #15", address: "1QCbW9HWnwQWiQqVo5exhAnmfqKRrCRsvW",
+    rangeStart: "4000", rangeEnd: "7fff", reward: 0, bits: 15, rangeSize: "16384", solved: true, solvedDate: "2016"
+  },
+  {
+    id: 16, name: "Puzzle #16", address: "1BDyrQ6WoF8VN3g9SAS1iKZcPzFfnDVieY",
+    rangeStart: "8000", rangeEnd: "ffff", reward: 0, bits: 16, rangeSize: "32768", solved: true, solvedDate: "2016"
+  },
   // SOLVED PUZZLES (kept for reference, marked as solved)
   {
     id: 66,
