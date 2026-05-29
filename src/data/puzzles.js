@@ -19,7 +19,7 @@ export const BITCOIN_PUZZLES = [
     bits: 17,
     rangeSize: "65536", // 2^16
     solved: false,
-    test: true
+    isTest: true
   },
   // SOLVED PUZZLES (kept for reference, marked as solved)
   {
