@@ -8,7 +8,7 @@ import Community from './Community/Community';
 import BottomNav from './components/BottomNav';
 import History from './History/History';
 import axios from "axios";
-import { X, Coins, Target, ClipboardList, BookOpen, Lightbulb, AlertTriangle, BarChart3 } from 'lucide-react';
+import { X, Coins, Target, ClipboardList, BookOpen, Lightbulb, AlertTriangle, BarChart3, Info } from 'lucide-react';
 
 // Утилиты
 import { formatBalance } from './utils/formatters';
@@ -370,23 +370,25 @@ function App() {
     });
   };
 
-  // Функция сохранения данных в IndexedDB
-  const savePageToHistory = async (pageNumber, balances) => {
+  // Функция сохранения данных в IndexedDB.
+  // extra — доп. поля записи (например, { find: { wif, hex, address } } для находки пазла).
+  // force — перезаписать существующую запись (нужно, чтобы находка с ключом точно сохранилась).
+  const savePageToHistory = async (pageNumber, balances, extra = {}, force = false) => {
     const db = await initDB();
     const tx = db.transaction('pages', 'readwrite');
     const store = tx.objectStore('pages');
-  
+
     // Проверяем, существует ли уже запись с таким pageNumber
     const existingRecord = await store.get(pageNumber);
-    
-    if (!existingRecord) {
+
+    if (!existingRecord || force) {
       const timestamp = new Date().toISOString(); // Получаем текущую дату и время
-      await store.put({ pageNumber, balances, timestamp });
+      await store.put({ pageNumber, balances, timestamp, ...extra });
       console.log(`Запись с pageNumber ${pageNumber} сохранена в историю.`);
     } else {
       console.log(`Запись с pageNumber ${pageNumber} уже существует. Сохранение пропущено.`);
     }
-  
+
     await tx.done; // Завершаем транзакцию
   };
 
@@ -409,6 +411,17 @@ function App() {
       const paginatedRecords = sortedRecords.slice(offset, offset + limit);
 
       return paginatedRecords;
+  };
+
+  // Все находки пазлов (записи с полем find) — отдельный раздел Истории. Их мало → без пагинации.
+  const getPuzzleFinds = async () => {
+    const db = await initDB();
+    const tx = db.transaction('pages', 'readonly');
+    const store = tx.objectStore('pages');
+    const allRecords = await store.getAll();
+    return allRecords
+      .filter(r => r && r.find)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   };
 
   // Функция сохранения последнего числа в IndexedDB
@@ -816,10 +829,23 @@ function App() {
       totalReceivedSatoshi = balanceSatoshi;
     }
 
-    // Сохраняем в историю, если есть баланс или история транзакций
-    if (calculatedPageNumber && (balanceSatoshi > 0 || totalReceivedSatoshi > 0)) {
+    // Сохраняем находку в историю ВСЕГДА (даже при нулевом балансе — приватный ключ терять нельзя).
+    if (calculatedPageNumber) {
       console.log('Saving puzzle find to history, page:', calculatedPageNumber);
-      await savePageToHistory(calculatedPageNumber, [result.address_found]);
+      await savePageToHistory(
+        calculatedPageNumber,
+        [result.address_found],
+        {
+          find: {
+            address: result.address_found,
+            wif: result.private_key_wif,
+            hex: result.private_key_hex,
+            puzzleName: puzzle?.name || null,
+            balanceBtc: balanceSatoshi / 100000000
+          }
+        },
+        true // перезаписать существующую запись, чтобы ключ точно сохранился
+      );
     }
 
     // Показываем результат
@@ -827,7 +853,8 @@ function App() {
     setBalancesResult([{
       publicKeyAddress: { address: '', final_balance: 0, total_received: 0 },
       compressedPublicKeyAddress: { address: result.address_found, final_balance: balanceSatoshi, total_received: totalReceivedSatoshi },
-      privateKeyWIFUncompressed: result.private_key_wif
+      privateKeyWIFUncompressed: result.private_key_wif,
+      privateKeyHex: result.private_key_hex
     }]);
     setFinalBalance(balanceSatoshi);
     setTotalReceived(totalReceivedSatoshi);
@@ -1750,10 +1777,11 @@ function App() {
       />
       <div className='content'>
     
-              {showHistory && <History 
-                setShowHistory={setShowHistory} 
-                getHistoryFromDB={getHistoryFromDB} 
-                switchPosition={switchPosition} 
+              {showHistory && <History
+                setShowHistory={setShowHistory}
+                getHistoryFromDB={getHistoryFromDB}
+                getPuzzleFinds={getPuzzleFinds}
+                switchPosition={switchPosition}
                 switchToPage={switchToPage}
                 onInitializeAudio={initializeAudio}
               />}
@@ -1889,7 +1917,13 @@ function App() {
                 {/* Performance & search settings */}
                 <div className="puzzle-settings-section">
                   <div className="puzzle-setting-row">
-                    <span className="puzzle-setting-label">{t('puzzleSearchModeLabel')}</span>
+                    <span className="puzzle-setting-label">
+                      {t('puzzleSearchModeLabel')}
+                      <span className="info-tip" tabIndex={0}>
+                        <Info size={13} />
+                        <span className="info-pop">{t('puzzleSearchModeInfo')}</span>
+                      </span>
+                    </span>
                     <div className="puzzle-segmented">
                       <button
                         type="button"
@@ -1945,7 +1979,13 @@ function App() {
                   </div>
 
                   <div className="puzzle-setting-row">
-                    <span className="puzzle-setting-label">{t('puzzleIntensity')}</span>
+                    <span className="puzzle-setting-label">
+                      {t('puzzleIntensity')}
+                      <span className="info-tip" tabIndex={0}>
+                        <Info size={13} />
+                        <span className="info-pop">{t('puzzleIntensityInfo')}</span>
+                      </span>
+                    </span>
                     <div className="puzzle-segmented">
                       <button
                         type="button"

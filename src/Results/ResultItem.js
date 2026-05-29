@@ -90,7 +90,7 @@ function ResultItem(props) {
 
             <div className="private-key-section">
                 <div className="private-key-header">
-                    <span className="private-key-label">{t('privateKey')}</span>
+                    <span className="private-key-label">{t('privateKey')} (WIF)</span>
                     <button
                         className={`icon-btn copy-btn${copied === 'wif' ? ' copied' : ''}`}
                         onClick={() => {
@@ -106,6 +106,27 @@ function ResultItem(props) {
                     {props.privateKeyWIFUncompressed}
                 </div>
             </div>
+
+            {props.privateKeyHex && (
+                <div className="private-key-section">
+                    <div className="private-key-header">
+                        <span className="private-key-label">{t('privateKey')} (HEX)</span>
+                        <button
+                            className={`icon-btn copy-btn${copied === 'hex' ? ' copied' : ''}`}
+                            onClick={() => {
+                                if (props.onInitializeAudio) props.onInitializeAudio();
+                                copyToClipboard(props.privateKeyHex, 'hex');
+                            }}
+                            title={copied === 'hex' ? 'Copied!' : 'Copy'}
+                        >
+                            {copied === 'hex' ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
+                    </div>
+                    <div className={`private-key-value${hasAnyBalance ? ' has-balance' : ''}`}>
+                        {props.privateKeyHex}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

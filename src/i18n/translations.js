@@ -85,6 +85,9 @@ export const translations = {
     historyEmptySubtext: "Keep scanning - luck will surely smile upon you!",
     historyLoading: "Loading history...",
     historyEnd: "End of history reached",
+    historyTabPages: "Pages",
+    historyTabPuzzles: "Puzzles",
+    historyPuzzlesEmpty: "No puzzle finds yet. Solved keys appear here and are kept locally.",
 
     // Results
     resultsTitle: "Results",
@@ -188,6 +191,8 @@ export const translations = {
     puzzleIntensityEcoHint: "Big pauses between batches (~15% CPU/core)",
     puzzleIntensityNormalHint: "Small pauses (~50% CPU/core)",
     puzzleIntensityTurboHint: "No pauses, full speed (~100% CPU/core)",
+    puzzleSearchModeInfo: "Random — jumps to random keys across the range (no progress bar, but may get lucky early). Sequential — scans keys in order from a start point (shows progress, full coverage over time).",
+    puzzleIntensityInfo: "Eco — big pauses, ~15% CPU per core. Normal — small pauses, ~50%. Turbo — no pauses, full speed (~100% CPU per core).",
     puzzlePauseWhenHidden: "Slow down when tab is in background",
     puzzleProgress: "Progress",
 
@@ -296,6 +301,9 @@ export const translations = {
     historyEmptySubtext: "Продолжайте сканирование - удача обязательно улыбнется!",
     historyLoading: "Загрузка истории...",
     historyEnd: "Достигнут конец истории",
+    historyTabPages: "Страницы",
+    historyTabPuzzles: "Пазлы",
+    historyPuzzlesEmpty: "Находок пазлов пока нет. Решённые ключи появятся здесь и сохранятся локально.",
 
     // Results
     resultsTitle: "Результаты",
@@ -399,6 +407,8 @@ export const translations = {
     puzzleIntensityEcoHint: "Большие паузы между батчами (~15% CPU/ядро)",
     puzzleIntensityNormalHint: "Небольшие паузы (~50% CPU/ядро)",
     puzzleIntensityTurboHint: "Без пауз, на полную (~100% CPU/ядро)",
+    puzzleSearchModeInfo: "Случайный — прыгает по случайным ключам диапазона (без прогресса, но может повезти раньше). Последовательный — идёт по порядку от точки старта (показывает прогресс, со временем полный охват).",
+    puzzleIntensityInfo: "Эко — большие паузы, ~15% CPU на ядро. Норма — малые паузы, ~50%. Турбо — без пауз, на полную (~100% CPU на ядро).",
     puzzlePauseWhenHidden: "Снижать нагрузку, когда вкладка свёрнута",
     puzzleProgress: "Прогресс",
 
