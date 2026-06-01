@@ -1,0 +1,34 @@
+[package]
+name = "bitkee-fast"
+version = "0.1.0"
+edition = "2021"
+authors = ["BitKee"]
+description = "Fast CLI Bitcoin puzzle solver — batch-inversion incremental EC (5-10x)"
+
+[[bin]]
+name = "bitkee-fast"
+path = "src/main.rs"
+
+[dependencies]
+# secp256k1 — только для стартовой точки (один EC mult на запуск)
+k256 = { version = "0.13", features = ["arithmetic"] }
+# 256-битная модулярная арифметика поля для инкрементальных сложений
+crypto-bigint = "0.5"
+# Хеши для адресов
+sha2 = "0.10"
+ripemd = "0.1"
+bs58 = "0.5"
+# Random стартовая точка / диапазоны
+num-bigint = "0.4"
+num-traits = "0.2"
+rand = "0.8"
+# Многопоточность / UI / Ctrl+C
+num_cpus = "1"
+ctrlc = "3"
+dialoguer = { version = "0.11", features = ["fuzzy-select"] }
+atty = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
