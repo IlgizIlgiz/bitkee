@@ -78,6 +78,28 @@ let wasm_bindgen = (function(exports) {
         wasm.init();
     }
     exports.init = init;
+
+    /**
+     * Get the compressed public key bytes (33 bytes) as a hex string.
+     * Used by the GPU-accelerated path: CPU does secp256k1, GPU does hash160.
+     * @param {string} private_key_hex
+     * @returns {string}
+     */
+    function pubkey_from_private_key(private_key_hex) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ptr0 = passStringToWasm0(private_key_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.pubkey_from_private_key(ptr0, len0);
+            deferred2_0 = ret[0];
+            deferred2_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    exports.pubkey_from_private_key = pubkey_from_private_key;
     function __wbg_get_imports() {
         const import0 = {
             __proto__: null,

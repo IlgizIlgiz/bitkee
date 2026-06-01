@@ -116,6 +116,24 @@ fn private_key_to_wif(key: &[u8; 32], compressed: bool) -> String {
     bs58::encode(payload).into_string()
 }
 
+/// Get the compressed public key bytes (33 bytes) as a hex string.
+/// Used by the GPU-accelerated path: CPU does secp256k1, GPU does hash160.
+#[wasm_bindgen]
+pub fn pubkey_from_private_key(private_key_hex: &str) -> String {
+    match hex_to_bytes(private_key_hex) {
+        Some(key) => {
+            let sk = match k256::SecretKey::from_slice(&key) {
+                Ok(sk) => sk,
+                Err(_) => return String::from("invalid_key"),
+            };
+            let pubkey = sk.public_key();
+            let encoded = pubkey.to_encoded_point(true); // compressed = 33 bytes
+            bytes_to_hex(encoded.as_bytes())
+        }
+        None => String::from("invalid_key"),
+    }
+}
+
 /// Generate a single address from a hex private key.
 /// Used by the normal address-generation worker path (manual/auto modes).
 #[wasm_bindgen]
@@ -302,5 +320,14 @@ mod tests {
             "json={}",
             json
         );
+    }
+
+    #[test]
+    fn test_pubkey_from_private_key() {
+        // Private key = 1 → compressed pubkey = 02 || G.x (canonical generator)
+        let pk = pubkey_from_private_key(K01);
+        assert_eq!(pk, "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
+        // Invalid key returns error marker
+        assert_eq!(pubkey_from_private_key("xyz"), "invalid_key");
     }
 }
