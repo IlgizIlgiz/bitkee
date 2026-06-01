@@ -22,6 +22,30 @@ enum Mode {
     Random,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Intensity {
+    Eco,
+    Normal,
+    Turbo,
+}
+
+impl Intensity {
+    fn throttle_ms(self) -> u64 {
+        match self {
+            Intensity::Eco => 50,
+            Intensity::Normal => 10,
+            Intensity::Turbo => 0,
+        }
+    }
+    fn label(self) -> &'static str {
+        match self {
+            Intensity::Eco => "eco (50ms пауза, холодный CPU)",
+            Intensity::Normal => "normal (10ms пауза, умеренный)",
+            Intensity::Turbo => "turbo (без пауз, максимум 🔥)",
+        }
+    }
+}
+
 struct Shared {
     found: AtomicBool,
     checked: AtomicU64,
@@ -81,6 +105,7 @@ fn worker(
     seg_start: BigUint, // откуда начинать этому потоку (sequential)
     seg_end: BigUint,   // докуда (sequential); для random игнор
     mode: Mode,
+    throttle_ms: u64,
     table: Arc<Vec<ec::AffinePoint>>,
     state: Arc<Shared>,
 ) {
@@ -147,6 +172,11 @@ fn worker(
                 }
             }
         }
+
+        // Дроссель нагрузки CPU (eco/normal/turbo): пауза между батчами.
+        if throttle_ms > 0 {
+            thread::sleep(Duration::from_millis(throttle_ms));
+        }
     }
 }
 
@@ -186,7 +216,8 @@ fn fmt_count(c: u64) -> String {
     }
 }
 
-fn run(puzzle: &puzzles::Puzzle, threads: usize, mode: Mode) {
+fn run(puzzle: &puzzles::Puzzle, threads: usize, mode: Mode, intensity: Intensity) {
+    let throttle_ms = intensity.throttle_ms();
     let target_h160 = match address_to_h160(puzzle.address) {
         Some(h) => h,
         None => {
@@ -201,7 +232,7 @@ fn run(puzzle: &puzzles::Puzzle, threads: usize, mode: Mode) {
     println!("\n🎯 {}  |  адрес: {}", puzzle.name, puzzle.address);
     println!("   Диапазон: {} .. {}  ({} бит)", puzzle.range_start, puzzle.range_end, puzzle.bits);
     println!("   Режим: {}", if mode == Mode::Sequential { "sequential (батч-инверсия по кускам)" } else { "random (батч-инверсия от случайных стартов)" });
-    println!("🚀 {} потоков | batch-inversion (1 обращение на {} ключей)", threads, BATCH);
+    println!("🚀 {} потоков | интенсивность: {} | batch-inversion (1 обращение на {} ключей)", threads, intensity.label(), BATCH);
     println!("   Нажми Ctrl+C чтобы остановить\n");
 
     // Таблица iG — общая для всех потоков (read-only).
@@ -238,7 +269,7 @@ fn run(puzzle: &puzzles::Puzzle, threads: usize, mode: Mode) {
             }
         };
         handles.push(thread::spawn(move || {
-            worker(target_h160, rs, re, seg_start, seg_end, mode, tbl, st);
+            worker(target_h160, rs, re, seg_start, seg_end, mode, throttle_ms, tbl, st);
         }));
     }
 
@@ -304,6 +335,7 @@ fn main() {
     let mut puzzle_id: Option<u32> = None;
     let mut threads = num_cpus::get();
     let mut mode = Mode::Sequential;
+    let mut intensity = Intensity::Normal;
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
@@ -313,6 +345,12 @@ fn main() {
                 Some("random") => Mode::Random,
                 Some("sequential") => Mode::Sequential,
                 _ => Mode::Sequential,
+            }; }
+            "--intensity" | "-i" => { i += 1; intensity = match args.get(i).map(|s| s.as_str()) {
+                Some("eco") => Intensity::Eco,
+                Some("normal") => Intensity::Normal,
+                Some("turbo") => Intensity::Turbo,
+                _ => Intensity::Normal,
             }; }
             "--help" | "-h" => { print_usage(); return; }
             _ => {}
@@ -335,7 +373,7 @@ fn main() {
     };
 
     match puzzle {
-        Some(p) => run(&p, threads.max(1), mode),
+        Some(p) => run(&p, threads.max(1), mode, intensity),
         None => { eprintln!("❌ Пазл не найден. bitkee-fast --help"); }
     }
 }
@@ -356,14 +394,19 @@ fn interactive() -> Option<puzzles::Puzzle> {
     let topts: Vec<String> = (1..=max_t).map(|n| if n == max_t { format!("{} (все ядра)", n) } else { n.to_string() }).collect();
     let t = dialoguer::Select::new().with_prompt("⚡ Потоков").items(&topts).default(max_t - 1).interact().ok()?;
 
-    run(&puzzle, t + 1, mode);
+    let intensities = [Intensity::Eco, Intensity::Normal, Intensity::Turbo];
+    let int_items: Vec<String> = intensities.iter().map(|x| x.label().to_string()).collect();
+    let int_sel = dialoguer::Select::new().with_prompt("🌡  Интенсивность (нагрузка CPU)").items(&int_items).default(1).interact().ok()?;
+
+    run(&puzzle, t + 1, mode, intensities[int_sel]);
     None
 }
 
 fn print_usage() {
     eprintln!("bitkee-fast — Bitcoin Puzzle Solver (batch-inversion, 5-10x)\n");
     eprintln!("  bitkee-fast                        — интерактивный режим");
-    eprintln!("  bitkee-fast -p <id> [-t N] [-m random|sequential]\n");
+    eprintln!("  bitkee-fast -p <id> [-t N] [-m random|sequential] [-i eco|normal|turbo]\n");
+    eprintln!("Интенсивность (нагрузка CPU): eco (холодный) | normal | turbo (максимум)\n");
     eprintln!("Пазлы:");
     for p in puzzles::PUZZLES.iter() {
         let tag = if p.reward > 0.0 { format!(" 💰 {:.2} BTC", p.reward) } else { String::new() };
