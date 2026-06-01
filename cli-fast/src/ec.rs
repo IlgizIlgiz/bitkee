@@ -12,8 +12,10 @@ pub type Fe = DynResidue<{ U256::LIMBS }>;
 
 // secp256k1 field prime
 const P_HEX: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
-// Генератор G
+// Генератор G (используется в тестах для сверки с k256)
+#[allow(dead_code)]
 const GX_HEX: &str = "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798";
+#[allow(dead_code)]
 const GY_HEX: &str = "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8";
 
 static PARAMS: OnceLock<DynResidueParams<{ U256::LIMBS }>> = OnceLock::new();
@@ -146,16 +148,6 @@ pub fn compressed_pubkey(pt: &AffinePoint) -> [u8; 33] {
     let y = pt.y.retrieve();
     out[0] = if bool::from(y.is_odd()) { 0x03 } else { 0x02 };
     out[1..].copy_from_slice(&fe_to_be(&pt.x));
-    out
-}
-
-/// Несжатый публичный ключ (65 байт).
-#[inline]
-pub fn uncompressed_pubkey(pt: &AffinePoint) -> [u8; 65] {
-    let mut out = [0u8; 65];
-    out[0] = 0x04;
-    out[1..33].copy_from_slice(&fe_to_be(&pt.x));
-    out[33..].copy_from_slice(&fe_to_be(&pt.y));
     out
 }
 
