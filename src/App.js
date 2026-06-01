@@ -672,19 +672,8 @@ function App() {
     });
     puzzleWorkersRef.current = [];
 
-    // Разрезаем диапазон на подотрезки.
-    // ВАЖНО: разрезание (по одному куску на воркера) уместно ТОЛЬКО для sequential —
-    // там каждый воркер линейно проходит свой кусок, вместе покрывая всё без дублей.
-    // Для random разрезание ВРЕДНО: ключ лежит в одном куске, и только 1 воркер из N
-    // его ищет, остальные впустую жгут CPU в кусках без ключа. Поэтому в random отдаём
-    // КАЖДОМУ воркеру весь диапазон — тогда все N покрывают пространство в N раз быстрее.
-    let subranges;
-    if (mode === 'random') {
-      const [full] = splitPuzzleRange(puzzle.rangeStart, puzzle.rangeEnd, 1, startPercent);
-      subranges = Array.from({ length: numWorkers }, () => ({ ...full }));
-    } else {
-      subranges = splitPuzzleRange(puzzle.rangeStart, puzzle.rangeEnd, numWorkers, startPercent);
-    }
+    // Разрезаем диапазон на N подотрезков
+    const subranges = splitPuzzleRange(puzzle.rangeStart, puzzle.rangeEnd, numWorkers, startPercent);
 
     // Создаём новые воркеры
     for (let i = 0; i < numWorkers; i++) {

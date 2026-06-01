@@ -69,3 +69,7 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# CLI puzzle results
+puzzle_*_found.txt
+cli/target/
