@@ -18,9 +18,9 @@ const getMode = () => {
     const val = args[idx].includes('=') ? args[idx].split('=')[1] : args[idx + 1];
     if (val === 'cpu' || val === 'gpu' || val === 'both') return val;
   }
-  return 'gpu';
+  return null; // не указан — спросим интерактивно
 };
-const MODE = getMode();
+const CLI_MODE = getMode();
 const COUNT = parseInt(args.find(a => a.startsWith('--count='))?.split('=')[1] || '20000');
 
 // ── WASM loader (manual glue, no browser APIs) ──
@@ -245,9 +245,32 @@ async function verifyGPU(wasm: any, device: GPUDevice) {
   return true; // structural verification
 }
 
+// ── Interactive mode selector ──
+async function askMode(): Promise<string> {
+  console.log('═══ BitKee CLI ═══');
+  console.log('  Select mode:');
+  console.log('    [1] CPU  — WASM batch search (pure CPU, ~14k keys/s)');
+  console.log('    [2] GPU  — WebGPU hash160 accelerator (GPU + CPU pipeline)');
+  console.log('    [3] BOTH — benchmark CPU vs GPU side-by-side');
+  console.log();
+  const buf = new Uint8Array(16);
+  while (true) {
+    await Deno.stdout.write(new TextEncoder().encode('  Enter 1/2/3 [2]: '));
+    const n = await Deno.stdin.read(buf);
+    if (!n) { Deno.exit(0); }
+    const s = new TextDecoder().decode(buf.subarray(0, n)).trim();
+    if (s === '1') return 'cpu';
+    if (s === '2' || s === '') return 'gpu';
+    if (s === '3') return 'both';
+    console.log('  Enter 1, 2 or 3');
+  }
+}
+
 // ── Main ──
 async function main() {
-  console.log('═══ BitKee CLI ═══');
+  const MODE = CLI_MODE || await askMode();
+  console.log();
+  console.log(`═══ BitKee CLI ═══`);
   console.log(`  Mode: ${MODE.toUpperCase()}`);
   console.log(`  Keys: ${COUNT.toLocaleString()}`);
   console.log();
