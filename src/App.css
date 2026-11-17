@@ -185,6 +185,13 @@ body {
   justify-content: center;
 }
 
+/* Desktop: wider content */
+@media (min-width: 900px) {
+  .content {
+    max-width: 840px;
+  }
+}
+
 /* ============================================
    GLASS CARDS
    ============================================ */
