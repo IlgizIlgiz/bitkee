@@ -2,7 +2,7 @@
    RESULTS MODAL - Compact Premium Style
    ============================================ */
 
-/* Modal Overlay */
+/* Modal Overlay - top padding clears the sticky site header */
 .r-w {
   position: fixed;
   inset: 0;
@@ -13,7 +13,7 @@
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  padding: 16px;
+  padding: 88px 16px 16px;
 }
 
 /* Close overlay */
