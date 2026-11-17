@@ -42,6 +42,21 @@ function ResultItem(props) {
         if (!hasAddress(addr)) return null;
 
         const positive = isPositive(addr);
+        const openAddrExplorer = () => openExplorer(addr.address);
+
+        // Positive blocks (balance or history) open explorer on click
+        const blockProps = (active) => active ? {
+            onClick: openAddrExplorer,
+            role: 'button',
+            tabIndex: 0,
+            onKeyDown: (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openAddrExplorer();
+                }
+            },
+            title: t('openExplorer')
+        } : {};
 
         return (
             <div className="address-section" key={key}>
@@ -64,14 +79,14 @@ function ResultItem(props) {
                     {addr.address}
                 </div>
                 <div className="balance-row">
-                    <div className={`balance-item${addr.final_balance > 0 ? ' has-balance' : ''}`}>
+                    <div className={`balance-item${addr.final_balance > 0 ? ' has-balance clickable' : ''}`} {...blockProps(addr.final_balance > 0)}>
                         <Wallet size={10} />
                         <span className="balance-label">{t('finalBalance')}</span>
                         <span className="balance-value">
                             {props.formatBalance(addr.final_balance)} <span className="btc">BTC</span>
                         </span>
                     </div>
-                    <div className={`balance-item${addr.total_received > 0 ? ' has-received' : ''}`}>
+                    <div className={`balance-item${addr.total_received > 0 ? ' has-received clickable' : ''}`} {...blockProps(addr.total_received > 0)}>
                         <Wallet size={10} />
                         <span className="balance-label">{t('totalReceived')}</span>
                         <span className="balance-value">
