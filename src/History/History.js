@@ -108,25 +108,24 @@ function History(props) {
                     </div>
                 </div>
 
-                {/* Табы: Страницы | Пазлы */}
-                <div className="history-tabs">
-                    <button
-                        type="button"
-                        className={`history-tab ${activeTab === 'pages' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('pages')}
-                    >
-                        <FileText size={12} /> {t('historyTabPages')}
-                    </button>
-                    <button
-                        type="button"
-                        className={`history-tab ${activeTab === 'puzzles' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('puzzles')}
-                    >
-                        <Key size={12} /> {t('historyTabPuzzles')}{puzzleFinds.length > 0 ? ` (${puzzleFinds.length})` : ''}
-                    </button>
-                </div>
-
                 <div className="resData">
+                    {/* Табы: Страницы | Пазлы — липкие, список уходит под них */}
+                    <div className="history-tabs">
+                        <button
+                            type="button"
+                            className={`history-tab ${activeTab === 'pages' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('pages')}
+                        >
+                            <FileText size={12} /> {t('historyTabPages')}
+                        </button>
+                        <button
+                            type="button"
+                            className={`history-tab ${activeTab === 'puzzles' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('puzzles')}
+                        >
+                            <Key size={12} /> {t('historyTabPuzzles')}{puzzleFinds.length > 0 ? ` (${puzzleFinds.length})` : ''}
+                        </button>
+                    </div>
                     {activeTab === 'pages' ? (
                         <>
                             {pageItems.length === 0 && !loading && (
