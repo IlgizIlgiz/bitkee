@@ -662,12 +662,15 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 6px;
   padding: 14px 16px 12px;
   background: linear-gradient(180deg, rgba(16, 185, 129, 0.13), rgba(16, 185, 129, 0.04));
   border: 1px solid rgba(16, 185, 129, 0.22);
   border-radius: 12px;
   width: 100%;
+  min-height: 78px;
+  box-sizing: border-box;
   overflow: hidden;
 }
 

@@ -110,6 +110,9 @@ function PageInputModal({ isOpen, onClose, onConfirm, currentPage }) {
                 <span className="range-fromto">{t('to')}</span>
               </div>
               <div className="range-max-big">{MAX_PAGE.toString()}</div>
+              <div className={`char-counter${pageInputValue.length > MAX_PAGE.toString().length ? ' over' : ''}`}>
+                {t('charsEntered', { count: pageInputValue.length, max: MAX_PAGE.toString().length })}
+              </div>
             </div>
           </div>
         </div>

@@ -284,19 +284,25 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   text-align: center;
-  word-break: break-all;
+  white-space: nowrap;
   display: flex;
-  align-items: baseline;
-  gap: 3px;
+  align-items: center;
+  gap: 4px;
   justify-content: center;
-  min-height: 18px;
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  line-height: 20px;
+  overflow: hidden;
 }
 
 .btc-suffix {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-muted);
   margin-left: 2px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 /* Has balance - success state */
@@ -355,14 +361,18 @@
   color: var(--text-muted);
 }
 
-/* Balance loader spinner */
+/* Balance loader spinner - fixed box so card doesn't jump */
 .balance-loader {
   width: 14px;
   height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  flex-shrink: 0;
   border: 2px solid var(--border-subtle);
   border-top-color: var(--accent-primary);
   border-radius: 50%;
   animation: balance-spin 0.8s linear infinite;
+  display: block;
 }
 
 @keyframes balance-spin {
